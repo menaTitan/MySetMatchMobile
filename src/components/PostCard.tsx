@@ -1,0 +1,262 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Image, Pressable, Animated } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSport } from '../context/SportContext';
+import { radii, shadows, spacing, typography } from '../theme';
+import Avatar from './ui/Avatar';
+import { REACTIONS, type ReactionKind } from '../api';
+
+export interface PostLike {
+  id: string;
+  authorId?: string;
+  authorName: string;
+  profilePhotoUrl?: string;
+  content: string;
+  imageUrl?: string;
+  createdDate: string;
+  likeCount: number;
+  commentCount: number;
+  myReaction?: string;
+  sportName?: string;
+  comments?: { id: string; authorName: string; content: string }[];
+}
+
+interface Props {
+  post: PostLike;
+  /** When set, an owner kebab appears with Edit / Delete actions. */
+  isOwner?: boolean;
+  onReact?: (reaction: ReactionKind) => void;
+  onComment?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onAuthorPress?: () => void;
+}
+
+const REACTION_META: Record<ReactionKind, { emoji: string; color: string; label: string }> = {
+  Like:      { emoji: '👍', color: '#2563eb', label: 'Like' },
+  Love:      { emoji: '❤️', color: '#dc2626', label: 'Love' },
+  Celebrate: { emoji: '🎉', color: '#f59e0b', label: 'Celebrate' },
+};
+
+export default function PostCard({
+  post, isOwner, onReact, onComment, onEdit, onDelete, onAuthorPress,
+}: Props) {
+  const { theme } = useSport();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const active = post.myReaction && REACTIONS.includes(post.myReaction as ReactionKind)
+    ? (post.myReaction as ReactionKind) : undefined;
+  const meta = active ? REACTION_META[active] : null;
+  return (
+    <View style={[styles.card, { backgroundColor: theme.cardBg }, shadows.md]}>
+      <View style={styles.header}>
+        <Pressable onPress={onAuthorPress} disabled={!onAuthorPress}>
+          <Avatar name={post.authorName} photoUrl={post.profilePhotoUrl} size={40} />
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[typography.bodyStrong, { color: onAuthorPress ? theme.secondary : theme.textPrimary, fontSize: 14 }]}
+            onPress={onAuthorPress}
+          >
+            {post.authorName}
+          </Text>
+          <Text style={[typography.caption, { color: theme.textMuted }]}>{timeAgo(post.createdDate)}</Text>
+        </View>
+        {post.sportName ? (
+          <View style={[styles.sportTag, { backgroundColor: theme.accentLight }]}>
+            <Text style={[typography.caption, { color: theme.accentDark, fontWeight: '800', fontSize: 10, letterSpacing: 0.5 }]}>
+              {post.sportName.toUpperCase()}
+            </Text>
+          </View>
+        ) : null}
+        {isOwner ? (
+          <View style={{ position: 'relative' }}>
+            <Pressable onPress={() => setMenuOpen((x) => !x)} hitSlop={8} style={{ padding: 4 }}>
+              <Ionicons name="ellipsis-horizontal" size={18} color={theme.textMuted} />
+            </Pressable>
+            {menuOpen ? (
+              <OwnerMenu
+                onEdit={() => { setMenuOpen(false); onEdit?.(); }}
+                onDelete={() => { setMenuOpen(false); onDelete?.(); }}
+                onClose={() => setMenuOpen(false)}
+              />
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+
+      <Text style={[typography.body, { color: theme.textPrimary, marginTop: spacing.sm }]}>
+        {post.content}
+      </Text>
+
+      {post.imageUrl ? (
+        <Image source={{ uri: post.imageUrl }} style={styles.image} resizeMode="cover" />
+      ) : null}
+
+      <View style={[styles.actions, { borderTopColor: theme.divider }]}>
+        <View style={{ position: 'relative' }}>
+          <Pressable
+            onPress={() => onReact?.(active ?? 'Like')}
+            onLongPress={() => setPickerOpen(true)}
+            delayLongPress={250}
+            style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
+          >
+            {meta ? (
+              <Text style={{ fontSize: 17 }}>{meta.emoji}</Text>
+            ) : (
+              <Ionicons name="heart-outline" size={18} color={theme.textSecondary} />
+            )}
+            <Text style={[typography.smallStrong, { color: meta ? meta.color : theme.textSecondary }]}>
+              {meta ? meta.label : 'React'} · {post.likeCount}
+            </Text>
+          </Pressable>
+
+          {pickerOpen ? (
+            <ReactionPicker
+              onPick={(k) => { setPickerOpen(false); onReact?.(k); }}
+              onClose={() => setPickerOpen(false)}
+            />
+          ) : null}
+        </View>
+
+        <Pressable
+          onPress={onComment}
+          style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
+        >
+          <Ionicons name="chatbubble-outline" size={16} color={theme.textSecondary} />
+          <Text style={[typography.smallStrong, { color: theme.textSecondary }]}>
+            {post.commentCount}
+          </Text>
+        </Pressable>
+      </View>
+
+      {post.comments?.slice(0, 2).map((c) => (
+        <View key={c.id} style={[styles.commentPreview, { backgroundColor: theme.pageBg }]}>
+          <Text style={[typography.smallStrong, { color: theme.primary }]}>{c.authorName}</Text>
+          <Text style={[typography.small, { color: theme.textSecondary, flex: 1 }]} numberOfLines={2}>
+            {c.content}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function OwnerMenu({
+  onEdit, onDelete, onClose,
+}: { onEdit: () => void; onDelete: () => void; onClose: () => void }) {
+  const { theme } = useSport();
+  return (
+    <>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <View style={[ownerStyles.tray, { backgroundColor: theme.cardBg }, shadows.lg]}>
+        <Pressable style={ownerStyles.item} onPress={onEdit}>
+          <Ionicons name="create-outline" size={16} color={theme.textPrimary} />
+          <Text style={[typography.smallStrong, { color: theme.textPrimary }]}>Edit</Text>
+        </Pressable>
+        <View style={[ownerStyles.divider, { backgroundColor: theme.divider }]} />
+        <Pressable style={ownerStyles.item} onPress={onDelete}>
+          <Ionicons name="trash-outline" size={16} color={theme.dangerRed} />
+          <Text style={[typography.smallStrong, { color: theme.dangerRed }]}>Delete</Text>
+        </Pressable>
+      </View>
+    </>
+  );
+}
+
+const ownerStyles = StyleSheet.create({
+  tray: {
+    position: 'absolute', top: 24, right: 0,
+    minWidth: 140,
+    borderRadius: radii.md,
+    paddingVertical: 4,
+    zIndex: 10,
+  },
+  item: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  divider: { height: 1, marginHorizontal: 8 },
+});
+
+function ReactionPicker({
+  onPick, onClose,
+}: { onPick: (k: ReactionKind) => void; onClose: () => void }) {
+  const { theme } = useSport();
+  const anim = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    Animated.spring(anim, { toValue: 1, useNativeDriver: true, friction: 6 }).start();
+  }, []);
+  return (
+    <>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <Animated.View
+        style={[
+          pickerStyles.tray,
+          { backgroundColor: theme.cardBg, opacity: anim, transform: [{ scale: anim }] },
+          shadows.lg,
+        ]}
+      >
+        {REACTIONS.map((r) => (
+          <Pressable
+            key={r}
+            onPress={() => onPick(r)}
+            style={({ pressed }) => [pickerStyles.item, pressed && { transform: [{ scale: 1.25 }] }]}
+          >
+            <Text style={pickerStyles.emoji}>{REACTION_META[r].emoji}</Text>
+          </Pressable>
+        ))}
+      </Animated.View>
+    </>
+  );
+}
+
+const pickerStyles = StyleSheet.create({
+  tray: {
+    position: 'absolute',
+    bottom: 30, left: 0,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.xs + 2,
+    borderRadius: radii.pill,
+    gap: spacing.sm,
+  },
+  item: { padding: 6 },
+  emoji: { fontSize: 26 },
+});
+
+function timeAgo(dateStr: string) {
+  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
+const styles = StyleSheet.create({
+  card: {
+    borderRadius: radii.lg,
+    padding: spacing.base,
+    marginBottom: spacing.sm + 4,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  sportTag: {
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  image: {
+    width: '100%', height: 200,
+    borderRadius: radii.md,
+    marginTop: spacing.sm,
+  },
+  actions: {
+    flexDirection: 'row', gap: spacing.xl,
+    paddingTop: spacing.sm, marginTop: spacing.sm,
+    borderTopWidth: 1,
+  },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  commentPreview: {
+    flexDirection: 'row', gap: 6, flexWrap: 'wrap',
+    padding: 10, borderRadius: radii.sm, marginTop: 6,
+  },
+});

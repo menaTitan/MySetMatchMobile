@@ -39,3 +39,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Editor / tooling state
+.claude/
+.vscode/
+.idea/
+
+# React Native runtime crash log dumps that sometimes appear in the project root
+com.facebook.react.*
