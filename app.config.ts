@@ -38,8 +38,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       resizeMode: 'contain',
       backgroundColor: '#1A365D',
     },
-    ios: { supportsTablet: true },
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: 'com.mysetmatch.mobile',
+    },
     android: {
+      package: 'com.mysetmatch.mobile',
+      versionCode: 1,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#1A365D',
@@ -56,6 +61,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     extra: {
       apiBaseUrl,
       appEnv: profile,
+      eas: {
+        projectId: '379855ab-bc56-4a02-9be3-9fbfb558c5eb',
+      },
     },
   };
 };
