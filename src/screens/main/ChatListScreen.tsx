@@ -70,6 +70,7 @@ export default function ChatListScreen({ navigation }: any) {
               <RoomRow
                 room={item}
                 online={online}
+                myUserId={userId ?? undefined}
                 onPress={() => navigation.navigate('ChatRoom', { roomId: item.id, title: item.name })}
               />
             );
@@ -101,12 +102,15 @@ export default function ChatListScreen({ navigation }: any) {
   );
 }
 
-function RoomRow({ room, online, onPress }: { room: ChatRoomDto; online?: boolean; onPress: () => void }) {
+function RoomRow({
+  room, online, onPress, myUserId,
+}: { room: ChatRoomDto; online?: boolean; onPress: () => void; myUserId?: string }) {
   const { theme } = useSport();
   const preview = room.lastMessage?.content ?? 'No messages yet';
   const sent = room.lastMessage?.sentDate ? timeAgoShort(room.lastMessage.sentDate) : '';
+  // Direct chats: pick the other participant (not me) for the avatar.
   const otherPhoto = room.type === 'Direct'
-    ? room.participants.find(() => true)?.profilePhotoUrl
+    ? (room.participants.find((p) => p.userId !== myUserId) ?? room.participants[0])?.profilePhotoUrl
     : undefined;
   return (
     <Card padding={0} onPress={onPress}>

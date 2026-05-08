@@ -46,7 +46,7 @@ export default function TournamentPaymentsScreen({ route }: any) {
           renderItem={({ item: p }) => (
             <Card padding={0}>
               <View style={styles.row}>
-                <Avatar name={p.playerName} size={36} />
+                <Avatar name={p.playerName} photoUrl={p.profilePhotoUrl} size={36} playerId={p.playerId} />
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.bodyStrong, { color: theme.textPrimary }]}>{p.playerName}</Text>
                   <Text style={[typography.caption, { color: theme.textMuted }]}>

@@ -5,7 +5,7 @@ import { useSport } from '../../context/SportContext';
 import { navigate } from '../../navigation/navigationRef';
 import type { BracketMatch, BracketRound } from '../../types';
 import { radii, spacing, typography } from '../../theme';
-import { EmptyState } from '../ui';
+import { Avatar, EmptyState } from '../ui';
 
 interface Props {
   rounds: BracketRound[] | null;
@@ -107,6 +107,7 @@ function MatchCard({
 
       <Player
         name={match.player1?.name ?? 'TBD'}
+        photoUrl={match.player1?.profilePhotoUrl}
         sets={match.player1SetsWon}
         won={!!p1Won}
         mine={!!highlightPlayerId && match.player1?.id === highlightPlayerId}
@@ -115,6 +116,7 @@ function MatchCard({
       <View style={[styles.divider, { backgroundColor: theme.divider }]} />
       <Player
         name={match.player2?.name ?? 'TBD'}
+        photoUrl={match.player2?.profilePhotoUrl}
         sets={match.player2SetsWon}
         won={!!p2Won}
         mine={!!highlightPlayerId && match.player2?.id === highlightPlayerId}
@@ -179,8 +181,15 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function Player({
-  name, sets, won, mine, playerId,
-}: { name: string; sets: number; won: boolean; mine?: boolean; playerId?: string }) {
+  name, photoUrl, sets, won, mine, playerId,
+}: {
+  name: string;
+  photoUrl?: string;
+  sets: number;
+  won: boolean;
+  mine?: boolean;
+  playerId?: string;
+}) {
   const { theme } = useSport();
   const nameNode = (
     <Text
@@ -197,6 +206,13 @@ function Player({
   return (
     <View style={styles.playerRow}>
       {won ? <Ionicons name="trophy" size={13} color={theme.accent} /> : <View style={{ width: 13 }} />}
+      <Avatar
+        name={name}
+        photoUrl={photoUrl}
+        size={28}
+        playerId={playerId}
+        borderColor={won ? theme.accent : undefined}
+      />
       {playerId ? (
         <Pressable
           onPress={() => navigate('PlayerProfile', { playerId })}

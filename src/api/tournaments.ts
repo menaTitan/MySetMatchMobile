@@ -25,6 +25,7 @@ export interface RegistrationRow {
   registrationId: string;
   playerId: string;
   playerName: string;
+  profilePhotoUrl?: string;
   city?: string;
   country?: string;
   globalRating: number;
@@ -46,6 +47,7 @@ export interface TournamentPaymentRow {
   paymentId: string;
   playerId: string;
   playerName: string;
+  profilePhotoUrl?: string;
   amount: number;
   currency: string;
   status: string;

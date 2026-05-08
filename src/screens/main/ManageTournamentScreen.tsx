@@ -165,7 +165,7 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
               return (
                 <Card padding={0}>
                   <View style={styles.row}>
-                    <Avatar name={r.playerName} size={40} />
+                    <Avatar name={r.playerName} photoUrl={r.profilePhotoUrl} size={40} playerId={r.playerId} />
                     <View style={{ flex: 1 }}>
                       <Text style={[typography.bodyStrong, { color: theme.textPrimary }]} numberOfLines={1}>
                         {r.playerName}

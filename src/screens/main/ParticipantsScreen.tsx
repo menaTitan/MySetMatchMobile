@@ -28,7 +28,7 @@ export default function ParticipantsScreen({ route }: any) {
           renderItem={({ item: r }) => (
             <Card padding={0} onPress={() => navigate('PlayerProfile', { playerId: r.playerId })}>
               <View style={styles.row}>
-                <Avatar name={r.playerName} size={40} playerId={r.playerId} />
+                <Avatar name={r.playerName} photoUrl={r.profilePhotoUrl} size={40} playerId={r.playerId} />
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.bodyStrong, { color: theme.textPrimary }]}>{r.playerName}</Text>
                   <Text style={[typography.caption, { color: theme.textMuted }]}>
