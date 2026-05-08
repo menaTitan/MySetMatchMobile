@@ -267,7 +267,7 @@ export default function AppNavigator() {
       <RootStack.Screen
         name="EditProfile"
         component={EditProfileScreen}
-        options={{ title: 'Edit Profile' }}
+        options={{ headerShown: false }}
       />
     </RootStack.Navigator>
   );
