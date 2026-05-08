@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { searchApi, type SearchResults } from '../../api';
 import { useSport } from '../../context/SportContext';
+import { navigate as navRoot } from '../../navigation/navigationRef';
 import { radii, shadows, spacing, typography } from '../../theme';
 import { Avatar, EmptyState } from '../../components/ui';
 
@@ -49,60 +50,59 @@ export default function SearchScreen({ navigation }: any) {
 
   const rows: ResultRow[] = useMemo(() => {
     if (!results) return [];
+    // Each list is optional on the wire — fall back to [] so a partial response
+    // can never blow up the render.
+    const players     = results.players     ?? [];
+    const tournaments = results.tournaments ?? [];
+    const groups      = results.groups      ?? [];
+    const listings    = results.listings    ?? [];
+
     const out: ResultRow[] = [];
-    if (results.players.length) {
-      out.push({ kind: 'header', title: 'Players', count: results.players.length });
-      out.push(...results.players.map((p) => ({ kind: 'player', item: p } as const)));
+    if (players.length) {
+      out.push({ kind: 'header', title: 'Players', count: players.length });
+      out.push(...players.map((p) => ({ kind: 'player', item: p } as const)));
     }
-    if (results.tournaments.length) {
-      out.push({ kind: 'header', title: 'Tournaments', count: results.tournaments.length });
-      out.push(...results.tournaments.map((t) => ({ kind: 'tournament', item: t } as const)));
+    if (tournaments.length) {
+      out.push({ kind: 'header', title: 'Tournaments', count: tournaments.length });
+      out.push(...tournaments.map((t) => ({ kind: 'tournament', item: t } as const)));
     }
-    if (results.groups.length) {
-      out.push({ kind: 'header', title: 'My Groups', count: results.groups.length });
-      out.push(...results.groups.map((g) => ({ kind: 'group', item: g } as const)));
+    if (groups.length) {
+      out.push({ kind: 'header', title: 'My Groups', count: groups.length });
+      out.push(...groups.map((g) => ({ kind: 'group', item: g } as const)));
     }
-    if (results.listings.length) {
-      out.push({ kind: 'header', title: 'Marketplace', count: results.listings.length });
-      out.push(...results.listings.map((l) => ({ kind: 'listing', item: l } as const)));
+    if (listings.length) {
+      out.push({ kind: 'header', title: 'Marketplace', count: listings.length });
+      out.push(...listings.map((l) => ({ kind: 'listing', item: l } as const)));
     }
     return out;
   }, [results]);
 
   const hasResults = rows.some((r) => r.kind !== 'header');
 
-  // Modal sits on the root stack — close it before pushing to the destination
-  // so the user lands on the result, not behind the search overlay.
-  function dismissThen(go: () => void) {
-    navigation.goBack();
-    setTimeout(go, 0);
-  }
+  // Modal sits on the root stack. Use the global navigationRef so the call
+  // doesn't rely on this screen's instance — which is unmounted by the time
+  // setTimeout fires after a goBack().
   function openPlayer(playerId: string) {
     // PlayerProfile is a sibling on the root stack — replace ourselves with it.
     navigation.replace('PlayerProfile', { playerId });
   }
   function openTournament(id: string) {
-    dismissThen(() =>
-      navigation.getParent()?.navigate('Main', {
-        screen: 'Play', params: { screen: 'TournamentDetail', params: { id } },
-      }),
-    );
+    navRoot('Main', { screen: 'Play', params: { screen: 'TournamentDetail', params: { id } } });
+    navigation.goBack();
   }
   function openGroup(id: string, name: string) {
-    dismissThen(() =>
-      navigation.getParent()?.navigate('Main', {
-        screen: 'Community',
-        params: { screen: 'GroupDetail', params: { groupId: id, groupName: name } },
-      }),
-    );
+    navRoot('Main', {
+      screen: 'Community',
+      params: { screen: 'GroupDetail', params: { groupId: id, groupName: name } },
+    });
+    navigation.goBack();
   }
   function openListing(id: string) {
-    dismissThen(() =>
-      navigation.getParent()?.navigate('Main', {
-        screen: 'Market',
-        params: { screen: 'ListingDetail', params: { id } },
-      }),
-    );
+    navRoot('Main', {
+      screen: 'Market',
+      params: { screen: 'ListingDetail', params: { id } },
+    });
+    navigation.goBack();
   }
 
   return (
