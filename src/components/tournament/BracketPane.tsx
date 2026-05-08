@@ -41,7 +41,11 @@ export default function BracketPane({ rounds }: Props) {
   }
 
   const isKnockout = (r: BracketRound) => !/group/i.test(r.stage);
-  const groupRounds = rounds.filter(r => !isKnockout(r));
+  // Group rounds sorted alphabetically by round name → "Group A" before "Group B".
+  const groupRounds = rounds
+    .filter(r => !isKnockout(r))
+    .slice()
+    .sort((a, b) => (a.round ?? '').localeCompare(b.round ?? ''));
   const treeRounds = rounds
     .filter(isKnockout)
     .slice()
@@ -51,14 +55,12 @@ export default function BracketPane({ rounds }: Props) {
     <View>
       {groupRounds.length > 0 ? (
         <View style={{ marginBottom: spacing.lg }}>
-          <StageBanner label="Group Stage" subtitle={`${groupRounds.length} ${groupRounds.length === 1 ? 'group' : 'groups'}`} />
+          <StageBanner
+            label="Group Stage"
+            subtitle={`${groupRounds.length} ${groupRounds.length === 1 ? 'group' : 'groups'}`}
+          />
           {groupRounds.map((round, ri) => (
-            <View key={`group-${ri}`} style={{ marginBottom: spacing.lg, paddingHorizontal: spacing.base }}>
-              <RoundHeader stage={round.stage} round={round.round} count={round.matches.length} />
-              {round.matches.map((m, mi) => (
-                <ListMatchCard key={m.id ?? mi} match={m} />
-              ))}
-            </View>
+            <GroupSection key={`group-${ri}`} round={round} />
           ))}
         </View>
       ) : null}
@@ -75,6 +77,240 @@ export default function BracketPane({ rounds }: Props) {
     </View>
   );
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Group section — header + standings table + matches
+   ────────────────────────────────────────────────────────────── */
+
+interface PlayerStanding {
+  id: string;
+  name: string;
+  photoUrl?: string;
+  played: number;
+  wins: number;
+  losses: number;
+  setsWon: number;
+  setsLost: number;
+  /** Site rule: 2 points per win, 1 per loss. Adjust if your site uses another system. */
+  points: number;
+}
+
+function computeStandings(matches: BracketMatch[]): PlayerStanding[] {
+  const map = new Map<string, PlayerStanding>();
+  const ensure = (p: BracketMatch['player1']) => {
+    if (!p) return null;
+    let row = map.get(p.id);
+    if (!row) {
+      row = {
+        id: p.id,
+        name: p.name,
+        photoUrl: p.profilePhotoUrl,
+        played: 0, wins: 0, losses: 0, setsWon: 0, setsLost: 0, points: 0,
+      };
+      map.set(p.id, row);
+    }
+    return row;
+  };
+
+  for (const m of matches) {
+    if (m.status !== 'Completed') continue;
+    const a = ensure(m.player1);
+    const b = ensure(m.player2);
+    if (!a || !b) continue;
+    a.played++; b.played++;
+    a.setsWon  += m.player1SetsWon; a.setsLost += m.player2SetsWon;
+    b.setsWon  += m.player2SetsWon; b.setsLost += m.player1SetsWon;
+    if (m.winnerId === a.id) { a.wins++; b.losses++; }
+    else if (m.winnerId === b.id) { b.wins++; a.losses++; }
+  }
+
+  // Make sure players who haven't played yet still appear in standings.
+  for (const m of matches) {
+    if (m.player1) ensure(m.player1);
+    if (m.player2) ensure(m.player2);
+  }
+
+  for (const row of map.values()) {
+    row.points = row.wins * 2 + row.losses * 1;
+  }
+
+  return Array.from(map.values()).sort((a, b) =>
+    b.points - a.points
+    || (b.setsWon - b.setsLost) - (a.setsWon - a.setsLost)
+    || b.setsWon - a.setsWon
+    || a.name.localeCompare(b.name),
+  );
+}
+
+function GroupSection({ round }: { round: BracketRound }) {
+  const { theme } = useSport();
+  const standings = useMemo(() => computeStandings(round.matches), [round.matches]);
+  return (
+    <View style={{ marginBottom: spacing.lg, paddingHorizontal: spacing.base }}>
+      <View style={[
+        groupStyles.banner,
+        { backgroundColor: theme.featureBg, borderColor: `${theme.accent}40` },
+      ]}>
+        <View style={[groupStyles.bannerBar, { backgroundColor: theme.accent }]} />
+        <View style={{ flex: 1 }}>
+          <Text style={[typography.overline, { color: theme.accent, fontSize: 10 }]}>
+            {round.stage.toUpperCase()}
+          </Text>
+          <Text style={[
+            typography.display,
+            { color: theme.textPrimary, fontSize: 24, lineHeight: 26, letterSpacing: 1 },
+          ]}>
+            {round.round.toUpperCase()}
+          </Text>
+        </View>
+        <View style={[groupStyles.count, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+          <Ionicons name="people" size={11} color={theme.textSecondary} />
+          <Text style={[typography.caption, { color: theme.textSecondary, fontWeight: '700' }]}>
+            {standings.length}
+          </Text>
+        </View>
+      </View>
+
+      {standings.length > 0 ? (
+        <View style={[groupStyles.table, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+          <View style={[groupStyles.tableHeader, { borderBottomColor: theme.border }]}>
+            <Text style={[groupStyles.col, groupStyles.colRank, { color: theme.textMuted }]}>#</Text>
+            <Text style={[groupStyles.col, groupStyles.colPlayer, { color: theme.textMuted }]}>PLAYER</Text>
+            <Text style={[groupStyles.col, groupStyles.colNum, { color: theme.textMuted }]}>P</Text>
+            <Text style={[groupStyles.col, groupStyles.colNum, { color: theme.textMuted }]}>W</Text>
+            <Text style={[groupStyles.col, groupStyles.colNum, { color: theme.textMuted }]}>L</Text>
+            <Text style={[groupStyles.col, groupStyles.colSets, { color: theme.textMuted }]}>SETS</Text>
+            <Text style={[groupStyles.col, groupStyles.colNum, { color: theme.textMuted }]}>PTS</Text>
+          </View>
+          {standings.map((row, i) => (
+            <Pressable
+              key={row.id}
+              onPress={() => navigate('PlayerProfile', { playerId: row.id })}
+              style={({ pressed }) => [
+                groupStyles.tableRow,
+                {
+                  borderBottomColor: theme.divider,
+                  borderBottomWidth: i === standings.length - 1 ? 0 : 1,
+                },
+                pressed && { backgroundColor: theme.pageBgTint },
+              ]}
+            >
+              <Text style={[
+                groupStyles.col, groupStyles.colRank,
+                {
+                  color: i === 0 ? theme.accent : theme.textMuted,
+                  fontFamily: typography.display.fontFamily,
+                  fontSize: 14,
+                },
+              ]}>
+                {i + 1}
+              </Text>
+              <Text
+                style={[
+                  groupStyles.col, groupStyles.colPlayer,
+                  typography.bodyStrong,
+                  { color: theme.textPrimary, fontSize: 13 },
+                ]}
+                numberOfLines={1}
+              >
+                {row.name}
+              </Text>
+              <NumCell value={row.played} color={theme.textSecondary} />
+              <NumCell value={row.wins}   color={theme.successGreen} bold />
+              <NumCell value={row.losses} color={theme.dangerRed} />
+              <Text style={[
+                groupStyles.col, groupStyles.colSets,
+                { color: theme.textPrimary, fontFamily: typography.display.fontFamily, fontSize: 13 },
+              ]}>
+                {row.setsWon}–{row.setsLost}
+              </Text>
+              <Text style={[
+                groupStyles.col, groupStyles.colNum,
+                {
+                  color: theme.accent,
+                  fontFamily: typography.display.fontFamily,
+                  fontSize: 16,
+                  letterSpacing: 0.4,
+                },
+              ]}>
+                {row.points}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      <Text style={[typography.overline, { color: theme.textMuted, marginTop: spacing.md, marginBottom: spacing.sm, fontSize: 10 }]}>
+        MATCHES · {round.matches.length}
+      </Text>
+      {round.matches.map((m, mi) => (
+        <ListMatchCard key={m.id ?? mi} match={m} />
+      ))}
+    </View>
+  );
+}
+
+function NumCell({ value, color, bold }: { value: number; color: string; bold?: boolean }) {
+  return (
+    <Text style={[
+      groupStyles.col, groupStyles.colNum,
+      { color, fontWeight: bold ? '800' : '600', fontSize: 13 },
+    ]}>
+      {value}
+    </Text>
+  );
+}
+
+const groupStyles = StyleSheet.create({
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
+  },
+  bannerBar: {
+    width: 4,
+    height: 28,
+    borderRadius: 2,
+  },
+  count: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: radii.xs,
+    borderWidth: 1,
+  },
+  table: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: spacing.xs,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.sm + 2,
+  },
+  col: {
+    fontSize: 11,
+    letterSpacing: 0.6,
+    fontWeight: '700',
+  },
+  colRank: { width: 22, textAlign: 'left' },
+  colPlayer: { flex: 1, paddingRight: spacing.xs },
+  colNum: { width: 22, textAlign: 'center' },
+  colSets: { width: 44, textAlign: 'center' },
+});
 
 /* ──────────────────────────────────────────────────────────────
    Stage banner — used at the top of Group Stage / Knockout Stage

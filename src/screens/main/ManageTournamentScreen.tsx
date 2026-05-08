@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, Pressable, RefreshControl, Alert, TextInput, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { tournamentsApi, type RegistrationRow } from '../../api';
+import { matchesApi, tournamentsApi, type RegistrationRow } from '../../api';
 import { useSport } from '../../context/SportContext';
 import { useFetchData } from '../../hooks/useFetchData';
 import { radii, spacing, typography } from '../../theme';
@@ -234,9 +234,30 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
 
           <Card>
             <Text style={[typography.h3, { color: theme.primary, marginBottom: spacing.sm }]}>Brackets</Text>
-            <ActionBtn label="Generate Group Stage" icon="grid-outline" onPress={() => doAction('Generate groups', () => tournamentsApi.generateGroups(id))} disabled={busy} />
-            <ActionBtn label="Generate Knockout Stage" icon="git-branch-outline" onPress={() => doAction('Generate knockout', () => tournamentsApi.generateKnockout(id))} disabled={busy} />
-            <ActionBtn label="Regenerate Knockout (after groups complete)" icon="refresh-outline" onPress={() => doAction('Regenerate knockout', () => tournamentsApi.regenerateKnockout(id))} disabled={busy} />
+            <ActionBtn
+              label="Generate / Shuffle Group Stage"
+              icon="shuffle-outline"
+              onPress={() => doAction('Shuffle groups', () => tournamentsApi.generateGroups(id))}
+              disabled={busy}
+            />
+            <ActionBtn
+              label="Generate Knockout Stage"
+              icon="git-branch-outline"
+              onPress={() => doAction('Generate knockout', () => tournamentsApi.generateKnockout(id))}
+              disabled={busy}
+            />
+            <ActionBtn
+              label="Regenerate Knockout (after groups complete)"
+              icon="refresh-outline"
+              onPress={() => doAction('Regenerate knockout', () => tournamentsApi.regenerateKnockout(id))}
+              disabled={busy}
+            />
+            <ActionBtn
+              label="Resync Bracket"
+              icon="sync-outline"
+              onPress={() => doAction('Resync bracket', () => matchesApi.resyncBracket({ tournamentId: id }))}
+              disabled={busy}
+            />
             <ActionBtn label="Open Bracket Editor" icon="construct-outline" onPress={() => navigation.navigate('BracketEditor', { tournamentId: id, name })} />
             <ActionBtn label="View Brackets" icon="eye-outline" onPress={() => navigation.navigate('Brackets', { tournamentId: id, name })} />
           </Card>
