@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Image, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSport } from '../context/SportContext';
 import { radii, shadows, spacing, typography } from '../theme';
 import Avatar from './ui/Avatar';
+import LinkPreview from './LinkPreview';
+import { firstLinkPreview } from '../utils/linkPreview';
 import { REACTIONS, type ReactionKind } from '../api';
 
 export interface PostLike {
@@ -47,6 +49,7 @@ export default function PostCard({
   const active = post.myReaction && REACTIONS.includes(post.myReaction as ReactionKind)
     ? (post.myReaction as ReactionKind) : undefined;
   const meta = active ? REACTION_META[active] : null;
+  const link = useMemo(() => firstLinkPreview(post.content), [post.content]);
   return (
     <View style={[styles.card, { backgroundColor: theme.pageBg, borderBottomColor: theme.border }]}>
       <View style={styles.header}>
@@ -98,6 +101,12 @@ export default function PostCard({
 
       {post.imageUrl ? (
         <Image source={{ uri: post.imageUrl }} style={styles.image} resizeMode="cover" />
+      ) : null}
+
+      {link ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <LinkPreview url={link.url} />
+        </View>
       ) : null}
 
 

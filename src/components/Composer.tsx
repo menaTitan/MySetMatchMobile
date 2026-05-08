@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, TextInput, ActivityIndicator, Pressable, Image, Text, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,6 +8,8 @@ import { feedApi } from '../api';
 import type { MentionUser, PostVisibility } from '../api';
 import { radii, spacing, typography } from '../theme';
 import Avatar from './ui/Avatar';
+import LinkPreview from './LinkPreview';
+import { firstLinkPreview } from '../utils/linkPreview';
 import { useToast } from './ui';
 
 interface Props {
@@ -27,12 +29,22 @@ export default function Composer({ value, onChange, onSubmit, loading, placehold
   const toast = useToast();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<PostVisibility>('Public');
+  const [linkDismissed, setLinkDismissed] = useState<string | null>(null);
   const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionResults, setMentionResults] = useState<MentionUser[]>([]);
   const searchSeq = useRef(0);
 
   const canSend = !!value.trim() || !!imageUri;
+
+  // First URL in the post body — render a preview card unless the user
+  // explicitly dismissed it. The link itself stays in the text.
+  const linkPreview = useMemo(() => {
+    const detected = firstLinkPreview(value);
+    if (!detected) return null;
+    if (linkDismissed === detected.url) return null;
+    return detected;
+  }, [value, linkDismissed]);
 
   // Detect "@partial" right before the caret and search backend.
   useEffect(() => {
@@ -80,6 +92,7 @@ export default function Composer({ value, onChange, onSubmit, loading, placehold
   async function handleSend() {
     await onSubmit(value, imageUri ?? undefined, visibility);
     setImageUri(null);
+    setLinkDismissed(null);
   }
 
   const visIcon: any = visibility === 'Public' ? 'globe-outline'
@@ -161,6 +174,16 @@ export default function Composer({ value, onChange, onSubmit, loading, placehold
         </View>
       ) : null}
 
+      {/* Link / YouTube preview — derived from the first URL in the body. */}
+      {linkPreview ? (
+        <View style={styles.linkPreviewWrap}>
+          <LinkPreview
+            url={linkPreview.url}
+            onRemove={() => setLinkDismissed(linkPreview.url)}
+          />
+        </View>
+      ) : null}
+
       {/* Attach + visibility */}
       <View style={styles.actionsRow}>
         <Pressable onPress={pickImage} style={styles.attachBtn} hitSlop={8}>
@@ -215,6 +238,7 @@ const styles = StyleSheet.create({
   preview: {
     width: 120, height: 90, borderRadius: radii.sm,
   },
+  linkPreviewWrap: { marginLeft: 48, marginTop: 4, marginRight: 4 },
   removeBtn: {
     position: 'absolute', top: 4, right: 4,
     width: 20, height: 20, borderRadius: 10,
