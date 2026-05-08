@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Modal, Pressable,
-  KeyboardAvoidingView, Platform, ScrollView, ViewStyle, StyleProp,
+  Keyboard, Platform, ScrollView, ViewStyle, StyleProp,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSport } from '../../context/SportContext';
@@ -22,60 +22,89 @@ interface Props {
 }
 
 /**
- * Standard bottom sheet — handle bar, gradient-free header with title + close,
- * keyboard-aware. The single source of truth for modal sheets across the app
- * (filter sheets, picker lists, edit forms, refunds, etc.).
+ * Hook: returns the live keyboard height. Used by BottomSheet to lift the
+ * sheet above the keyboard — KeyboardAvoidingView is unreliable inside iOS
+ * modals (the modal has its own window so KAV's padding doesn't propagate).
+ */
+function useKeyboardHeight() {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setHeight(e.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => setHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
+  return height;
+}
+
+/**
+ * Standard bottom sheet — handle bar, gradient-free header with title + close.
+ * Lifts above the keyboard on iOS and Android using the measured keyboard
+ * height (the modal's own window means KeyboardAvoidingView is flaky).
  */
 export default function BottomSheet({
   visible, onClose, title, subtitle, tall, scrollable = true, contentStyle, children,
 }: Props) {
   const { theme } = useSport();
+  const keyboardHeight = useKeyboardHeight();
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={styles.overlay} onPress={onClose}>
-          <Pressable
-            style={[
-              styles.sheet,
-              {
-                backgroundColor: theme.surfaceElevated,
-                borderColor: theme.border,
-                borderTopWidth: 1,
-                borderLeftWidth: 1,
-                borderRightWidth: 1,
-                maxHeight: tall ? '92%' : '78%',
-              },
-            ]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View style={[styles.handle, { backgroundColor: theme.borderStrong }]} />
-            <View style={styles.header}>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.h2, { color: theme.textPrimary, textTransform: 'uppercase', letterSpacing: 0.6 }]}>{title}</Text>
-                {subtitle ? (
-                  <Text style={[typography.small, { color: theme.textMuted, marginTop: 2 }]}>{subtitle}</Text>
-                ) : null}
-              </View>
-              <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.cardBg, borderColor: theme.border }]} hitSlop={8}>
-                <Ionicons name="close" size={18} color={theme.textSecondary} />
-              </Pressable>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: theme.surfaceElevated,
+              borderColor: theme.border,
+              borderTopWidth: 1,
+              borderLeftWidth: 1,
+              borderRightWidth: 1,
+              maxHeight: tall ? '92%' : '78%',
+              // Lift the entire sheet above the keyboard. paddingBottom rather
+              // than marginBottom so the sheet's background continues behind
+              // the on-screen keyboard area before the layout updates.
+              marginBottom: keyboardHeight,
+            },
+          ]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={[styles.handle, { backgroundColor: theme.borderStrong }]} />
+          <View style={styles.header}>
+            <View style={{ flex: 1 }}>
+              <Text style={[
+                typography.h2,
+                { color: theme.textPrimary, textTransform: 'uppercase', letterSpacing: 0.6 },
+              ]}>{title}</Text>
+              {subtitle ? (
+                <Text style={[typography.small, { color: theme.textMuted, marginTop: 2 }]}>{subtitle}</Text>
+              ) : null}
             </View>
+            <Pressable
+              onPress={onClose}
+              style={[styles.closeBtn, { backgroundColor: theme.cardBg, borderColor: theme.border }]}
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={18} color={theme.textSecondary} />
+            </Pressable>
+          </View>
 
-            {scrollable ? (
-              <ScrollView
-                contentContainerStyle={[styles.body, contentStyle]}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                {children}
-              </ScrollView>
-            ) : (
-              <View style={[styles.body, contentStyle]}>{children}</View>
-            )}
-          </Pressable>
+          {scrollable ? (
+            <ScrollView
+              contentContainerStyle={[styles.body, contentStyle]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {children}
+            </ScrollView>
+          ) : (
+            <View style={[styles.body, styles.bodyFlex, contentStyle]}>{children}</View>
+          )}
         </Pressable>
-      </KeyboardAvoidingView>
+      </Pressable>
     </Modal>
   );
 }
@@ -110,5 +139,11 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
+  },
+  bodyFlex: {
+    // Non-scrollable bodies need to be flex containers so a child FlatList
+    // (or any flex:1 child) can shrink as the sheet shrinks under the keyboard.
+    flex: 1,
+    paddingBottom: 0,
   },
 });

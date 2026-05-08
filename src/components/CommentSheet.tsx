@@ -73,10 +73,11 @@ export default function CommentSheet({ visible, onClose, comments, onSubmit }: P
       scrollable={false}
       contentStyle={{ paddingHorizontal: 0, paddingBottom: 0 }}
     >
+      {/* List grows to fill the sheet, then shrinks when the keyboard opens. */}
       <FlatList
         data={threads}
         keyExtractor={(t) => t.comment.id}
-        style={{ maxHeight: 360 }}
+        style={{ flex: 1 }}
         renderItem={({ item: thread }) => (
           <View style={{ gap: spacing.xs }}>
             <CommentRow
@@ -114,7 +115,9 @@ export default function CommentSheet({ visible, onClose, comments, onSubmit }: P
         </View>
       ) : null}
 
-      <View style={[styles.inputRow, { borderTopColor: theme.divider }]}>
+      {/* Input pinned to the bottom of the sheet — the BottomSheet itself is
+          lifted above the keyboard, so this row always stays visible. */}
+      <View style={[styles.inputRow, { borderTopColor: theme.divider, backgroundColor: theme.surfaceElevated }]}>
         <TextInput
           style={[styles.input, { borderColor: theme.border, backgroundColor: theme.pageBg, color: theme.textPrimary }]}
           placeholder={replyingTo ? `Reply to ${replyingTo.authorName}…` : 'Write a comment…'}
@@ -128,12 +131,12 @@ export default function CommentSheet({ visible, onClose, comments, onSubmit }: P
           disabled={!text.trim() || sending}
           style={({ pressed }) => [
             styles.sendBtn,
-            { backgroundColor: text.trim() ? theme.primary : theme.divider },
+            { backgroundColor: text.trim() ? theme.accent : theme.divider },
             pressed && { opacity: 0.85 },
           ]}
         >
-          {sending ? <ActivityIndicator size="small" color="#fff" /> : (
-            <Ionicons name="send" size={16} color={text.trim() ? '#fff' : theme.textMuted} />
+          {sending ? <ActivityIndicator size="small" color={theme.textInverse} /> : (
+            <Ionicons name="send" size={16} color={text.trim() ? theme.textInverse : theme.textMuted} />
           )}
         </Pressable>
       </View>
