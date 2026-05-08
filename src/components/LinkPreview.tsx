@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import { WebView } from 'react-native-webview';
+import YoutubePlayer from 'react-native-youtube-iframe';
 import { useSport } from '../context/SportContext';
 import { radii, spacing, typography } from '../theme';
 import { getDisplayHost, getYouTubeId, getYouTubeThumbnail } from '../utils/linkPreview';
@@ -23,35 +23,44 @@ export default function LinkPreview({ url, onRemove }: Props) {
   const ytId = getYouTubeId(url);
   const host = getDisplayHost(url);
   const [playing, setPlaying] = useState(false);
+  const [playerWidth, setPlayerWidth] = useState(0);
 
   const open = () => { WebBrowser.openBrowserAsync(url).catch(() => {}); };
 
   if (ytId) {
+    // 16:9 height computed from the container width measured via onLayout —
+    // the YouTube iframe wrapper requires a fixed numeric height.
+    const playerHeight = playerWidth > 0 ? Math.round(playerWidth * 9 / 16) : 0;
     return (
       <View style={[
         styles.ytWrap,
         { borderColor: theme.border, backgroundColor: theme.cardBg },
       ]}>
-        <View style={styles.ytThumbWrap}>
-          {playing ? (
-            <WebView
-              style={styles.ytThumb}
-              source={{
-                // youtube-nocookie.com is YouTube's privacy-enhanced embed
-                // domain — it doesn't tie playback to the viewer's signed-in
-                // YouTube account, which avoids the "your account is being
-                // used in another location" pause when the same account has
-                // video playing on another device/tab.
-                // playsinline=1 keeps it inside the player on iOS instead of
-                // hijacking to fullscreen; modestbranding hides the YT logo.
-                uri: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&playsinline=1&modestbranding=1&rel=0`,
+        <View
+          style={styles.ytThumbWrap}
+          onLayout={(e) => setPlayerWidth(e.nativeEvent.layout.width)}
+        >
+          {playing && playerHeight > 0 ? (
+            // react-native-youtube-iframe wraps the YouTube IFrame Player API
+            // and sets the WebView config (origin, referer, JS bridge, hardware
+            // acceleration) that the bare iframe needs to avoid YouTube's
+            // "player configuration error" (code 153).
+            <YoutubePlayer
+              height={playerHeight}
+              width={playerWidth}
+              videoId={ytId}
+              play={true}
+              webViewProps={{
+                allowsInlineMediaPlayback: true,
+                mediaPlaybackRequiresUserAction: false,
+                androidLayerType: 'hardware',
               }}
-              allowsInlineMediaPlayback
-              mediaPlaybackRequiresUserAction={false}
-              javaScriptEnabled
-              domStorageEnabled
-              originWhitelist={['*']}
-              setSupportMultipleWindows={false}
+              initialPlayerParams={{
+                modestbranding: true,
+                rel: false,
+                preventFullScreen: false,
+              }}
+              onError={() => setPlaying(false)}
             />
           ) : (
             <Pressable onPress={() => setPlaying(true)} style={StyleSheet.absoluteFillObject}>
