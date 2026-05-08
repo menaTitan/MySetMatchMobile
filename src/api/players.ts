@@ -25,6 +25,8 @@ export interface PublicPlayerProfile {
   recentMatches: MatchSummary[];
   /** Optional gear list — shape may be an array of items or a flat object dict. */
   equipment?: EquipmentItem[] | Record<string, unknown>;
+  /** Hero photo for the player's gear (e.g. paddle setup). */
+  equipmentPhotoUrl?: string;
 }
 
 export interface RatingHistoryPoint { date: string; rating: number; delta: number; }

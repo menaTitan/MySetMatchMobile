@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { Image, Pressable, View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { playerApi, type PublicPlayerProfile, type RatingHistoryPoint } from '../../api';
 import { useSport } from '../../context/SportContext';
@@ -30,6 +30,7 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
 
   const toast = useToast();
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [equipmentPhotoOpen, setEquipmentPhotoOpen] = useState(false);
   // Live rating change banner — driven by PlayerRatingUpdated SignalR events.
   useEffect(() => {
     let off: (() => void) | undefined;
@@ -61,7 +62,7 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
     return Object.keys(eq).length > 0;
   };
 
-  const { player, displayRating, globalRank, countryRank, wins, losses, winRate, totalMatches, sportRatings, recentMatches, equipment } = data;
+  const { player, displayRating, globalRank, countryRank, wins, losses, winRate, totalMatches, sportRatings, recentMatches, equipment, equipmentPhotoUrl } = data;
   const isMe = me?.id === player.id;
 
   return (
@@ -165,11 +166,27 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
             </Card>
           )}
 
-          {/* Equipment — only renders when the API returns gear. */}
-          {hasEquipment(equipment) ? (
+          {/* Equipment — only renders when the API returns gear or a paddle photo. */}
+          {hasEquipment(equipment) || equipmentPhotoUrl ? (
             <Card>
               <SectionHeader title="Equipment" icon="construct-outline" />
-              <EquipmentList equipment={equipment} />
+              {equipmentPhotoUrl ? (
+                <Pressable
+                  onPress={() => setEquipmentPhotoOpen(true)}
+                  style={({ pressed }) => [
+                    styles.equipPhotoWrap,
+                    { borderColor: theme.border, backgroundColor: theme.pageBg },
+                    pressed && { opacity: 0.8 },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: equipmentPhotoUrl }}
+                    style={styles.equipPhoto}
+                    resizeMode="cover"
+                  />
+                </Pressable>
+              ) : null}
+              {hasEquipment(equipment) ? <EquipmentList equipment={equipment} /> : null}
             </Card>
           ) : null}
 
@@ -191,11 +208,27 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
         caption={player.name}
         onClose={() => setPhotoOpen(false)}
       />
+
+      <PhotoLightbox
+        visible={equipmentPhotoOpen}
+        photoUrl={equipmentPhotoUrl}
+        caption={`${player.name} · Equipment`}
+        onClose={() => setEquipmentPhotoOpen(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  equipPhotoWrap: {
+    width: '100%',
+    aspectRatio: 16 / 10,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+  },
+  equipPhoto: { width: '100%', height: '100%' },
   heroBody: { alignItems: 'center' },
   avatarRing: {
     padding: 3, borderRadius: 56, borderWidth: 3,
