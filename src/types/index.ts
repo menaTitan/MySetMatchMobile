@@ -111,8 +111,12 @@ export interface LeaderboardEntry {
 export interface Comment {
   id: string;
   content: string;
+  authorId?: string;
   authorName: string;
+  authorPhotoUrl?: string;
   createdDate: string;
+  parentCommentId?: string;
+  replies?: Comment[];
 }
 
 export interface FeedPost {
@@ -213,6 +217,8 @@ export interface MarketplaceListing {
   price: number;
   category: MarketplaceCategory;
   condition: MarketplaceCondition;
+  brand?: string;
+  model?: string;
   imageUrls: string[];
   sellerId: string;
   sellerName: string;

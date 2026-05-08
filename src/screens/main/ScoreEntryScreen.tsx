@@ -1,22 +1,41 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { matchesApi } from '../../api';
 import { useSport } from '../../context/SportContext';
+import { getHub } from '../../realtime/signalR';
 import type { MatchDetail } from '../../types';
-import { radii, shadows, spacing, typography } from '../../theme';
-import { Button, Card, KeyboardAware, LoadingView } from '../../components/ui';
+import { radii, spacing, typography } from '../../theme';
+import { Button, Card, HeroHeader, KeyboardAware, LoadingView, useToast } from '../../components/ui';
 
 export default function ScoreEntryScreen({ route, navigation }: any) {
   const { matchId } = route.params;
   const { theme } = useSport();
+  const toast = useToast();
   const [match, setMatch] = useState<MatchDetail | null>(null);
   const [sets, setSets] = useState<{ p1: string; p2: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { loadMatch(); }, [matchId]);
+
+  // Subscribe to per-match score broadcasts so two scorekeepers stay in sync.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    (async () => {
+      try {
+        const hub = await getHub('liveScore');
+        await hub.invoke('JoinMatchGroup', matchId).catch(() => {});
+        const handler = () => { loadMatch(); };
+        hub.on('MatchScoreUpdated', handler);
+        off = () => {
+          hub.off('MatchScoreUpdated', handler);
+          hub.invoke('LeaveMatchGroup', matchId).catch(() => {});
+        };
+      } catch {}
+    })();
+    return () => { if (off) off(); };
+  }, [matchId]);
 
   async function loadMatch() {
     try {
@@ -77,14 +96,7 @@ export default function ScoreEntryScreen({ route, navigation }: any) {
       style={[styles.container, { backgroundColor: theme.pageBg }]}
       contentContainerStyle={{ paddingBottom: spacing.xxxl }}
     >
-        {/* Gradient match header */}
-        <LinearGradient
-          colors={theme.heroGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}
-        >
-          <View pointerEvents="none" style={[styles.orb, { backgroundColor: theme.accentLight }]} />
+        <HeroHeader variant="standard">
           <Text style={styles.tournamentName}>{match.tournamentName}</Text>
           <Text style={styles.stage}>{match.stage}{match.round ? ` · ${match.round}` : ''}</Text>
 
@@ -99,7 +111,7 @@ export default function ScoreEntryScreen({ route, navigation }: any) {
               <Text style={[styles.pSets, { color: theme.accent }]}>{liveP2}</Text>
             </View>
           </View>
-        </LinearGradient>
+        </HeroHeader>
 
         <View style={{ padding: spacing.base }}>
           {/* Rules banner */}
@@ -180,6 +192,44 @@ export default function ScoreEntryScreen({ route, navigation }: any) {
             leftIcon="checkmark-circle-outline"
             style={{ marginTop: spacing.base }}
           />
+
+          <Button
+            title="Broadcast Live (set in progress)"
+            onPress={async () => {
+              try {
+                const live = sets.findIndex((s, i) => {
+                  const a = parseInt(s.p1) || 0; const b = parseInt(s.p2) || 0;
+                  return a > 0 || b > 0;
+                });
+                const idx = live === -1 ? 0 : live;
+                const s = sets[idx];
+                await matchesApi.updateLiveScore(matchId, idx + 1, parseInt(s.p1) || 0, parseInt(s.p2) || 0, false, false);
+                Alert.alert('Broadcast', 'Live score sent to viewers.');
+              } catch (e: any) {
+                Alert.alert('Failed', e?.response?.data?.message ?? 'Broadcast failed.');
+              }
+            }}
+            variant="ghost" size="md" fullWidth uppercase={false}
+            leftIcon="radio-outline"
+            style={{ marginTop: spacing.xs }}
+          />
+
+          {/* Promote this match into the public live-games feed so spectators
+              can find it without knowing the match id. */}
+          <Button
+            title="Show in Live Games"
+            onPress={async () => {
+              try {
+                await matchesApi.registerAsLiveGame(matchId);
+                toast('Listed in Live Games', 'success');
+              } catch (e: any) {
+                Alert.alert('Failed', e?.response?.data?.message ?? 'Could not list as live.');
+              }
+            }}
+            variant="ghost" size="md" fullWidth uppercase={false}
+            leftIcon="megaphone-outline"
+            style={{ marginTop: spacing.xs }}
+          />
         </View>
     </KeyboardAware>
   );
@@ -187,14 +237,6 @@ export default function ScoreEntryScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-    borderBottomLeftRadius: radii.xxl,
-    borderBottomRightRadius: radii.xxl,
-    overflow: 'hidden',
-  },
-  orb: { position: 'absolute', width: 220, height: 220, borderRadius: 110, top: -80, right: -60, opacity: 0.8 },
   tournamentName: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
   stage: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginBottom: spacing.base, marginTop: 2 },
   matchupRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

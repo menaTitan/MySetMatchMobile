@@ -4,41 +4,53 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 
 /* ── Root tab navigator ─────────────────────────────────────────────────── */
 export type RootTabParamList = {
-  Dashboard: undefined;
-  Tournaments: undefined;
-  Matches: undefined;
+  Home: undefined;
+  Play: undefined;
   Community: undefined;
-  Leaderboard: undefined;
-  Marketplace: undefined;
+  Market: undefined;
   Profile: undefined;
 };
 
-/* ── Tournaments stack ──────────────────────────────────────────────────── */
-export type TournamentsStackParamList = {
-  TournamentList: undefined;
+/* ── Play stack ─────────────────────────────────────────────────────────── */
+export type PlayStackParamList = {
+  PlayHome: undefined;
   TournamentDetail: { id: string };
+  TournamentArchive: undefined;
+  TournamentPayments: { tournamentId: string; name?: string };
+  TournamentWinners: { tournamentId: string; name?: string };
+  Participants: { tournamentId: string; name?: string };
   Brackets: { tournamentId: string; name?: string };
-};
-
-/* ── Matches stack ──────────────────────────────────────────────────────── */
-export type MatchesStackParamList = {
-  MatchList: undefined;
+  BracketEditor: { tournamentId: string; name?: string };
   ScoreEntry: { matchId: string };
-  LiveScore: undefined;
+  LiveScore: { tournamentId?: string; tournamentName?: string } | undefined;
+  StartNewGame: undefined;
+  MatchHistory: { playerId?: string } | undefined;
+  CreateTournament: { id?: string; edit?: boolean } | undefined;
+  ManageTournament: { id: string; name?: string };
+  AddPlayer: { tournamentId: string; name?: string };
+  PublicRegistration: { tournamentId?: string; tournamentName?: string } | undefined;
+  RegistrationSuccess: { registrationId?: string; tournamentName?: string } | undefined;
 };
 
-/* ── Community stack (includes chat) ────────────────────────────────────── */
+/* ── Community stack ────────────────────────────────────────────────────── */
 export type CommunityStackParamList = {
   CommunityHome: undefined;
   GroupDetail: { groupId: string; groupName: string };
+  GroupMembers: { groupId: string; name?: string };
   ChatList: undefined;
   ChatRoom: { roomId: string; title?: string };
   NewChat: undefined;
+  NewGroupChat: undefined;
+  ChatParticipants: { roomId: string; title?: string };
+  Reactions: { postId: string };
 };
 
 /* ── Marketplace stack ──────────────────────────────────────────────────── */
 export type MarketplaceStackParamList = {
   MarketplaceHome: undefined;
+  MyListings: undefined;
+  EditListing: { id: string };
+  ListingDetail: { id: string };
 };
 
 /* ── Profile stack ──────────────────────────────────────────────────────── */
@@ -46,30 +58,56 @@ export type ProfileStackParamList = {
   ProfileHome: undefined;
   EditProfile: undefined;
   Assistant: undefined;
+  MatchHistory: { playerId?: string } | undefined;
+  AdminHome: undefined;
+  AdminUsers: undefined;
+  AdminEditUser: { userId: string };
+  AdminPayments: undefined;
+  AdminTournaments: undefined;
+  AdminAnalytics: undefined;
+  AdminLocations: undefined;
+  AdminDebug: undefined;
+  PaymentHistory: undefined;
+  About: undefined;
+  Privacy: undefined;
+  Terms: undefined;
+  Refunds: undefined;
+  Rules: undefined;
+  Contact: undefined;
+};
+
+/* ── Home stack ─────────────────────────────────────────────────────────── */
+export type HomeStackParamList = {
+  HomeFeed: undefined;
+  MatchHistory: { playerId?: string } | undefined;
 };
 
 /* ── Auth stack ─────────────────────────────────────────────────────────── */
 export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { email?: string; token?: string } | undefined;
+  ConfirmEmail: { userId: string; token: string };
+  CreateProfile: undefined;
 };
 
 /* ── Screen prop helpers ────────────────────────────────────────────────── */
-export type TournamentsScreenProps<K extends keyof TournamentsStackParamList> =
+export type PlayScreenProps<K extends keyof PlayStackParamList> =
   CompositeScreenProps<
-    NativeStackScreenProps<TournamentsStackParamList, K>,
-    BottomTabScreenProps<RootTabParamList>
-  >;
-
-export type MatchesScreenProps<K extends keyof MatchesStackParamList> =
-  CompositeScreenProps<
-    NativeStackScreenProps<MatchesStackParamList, K>,
+    NativeStackScreenProps<PlayStackParamList, K>,
     BottomTabScreenProps<RootTabParamList>
   >;
 
 export type CommunityScreenProps<K extends keyof CommunityStackParamList> =
   CompositeScreenProps<
     NativeStackScreenProps<CommunityStackParamList, K>,
+    BottomTabScreenProps<RootTabParamList>
+  >;
+
+export type MarketplaceScreenProps<K extends keyof MarketplaceStackParamList> =
+  CompositeScreenProps<
+    NativeStackScreenProps<MarketplaceStackParamList, K>,
     BottomTabScreenProps<RootTabParamList>
   >;
 

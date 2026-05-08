@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, ActivityIndicator, Pressable, Image } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, TextInput, ActivityIndicator, Pressable, Image, Text, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useSport } from '../context/SportContext';
 import { useAuth } from '../context/AuthContext';
+import { feedApi } from '../api';
+import type { MentionUser, PostVisibility } from '../api';
 import { radii, spacing, typography } from '../theme';
 import Avatar from './ui/Avatar';
 import { useToast } from './ui';
@@ -11,23 +13,56 @@ import { useToast } from './ui';
 interface Props {
   value: string;
   onChange: (s: string) => void;
-  /**
-   * Submits the post. Receives the currently composed text plus an optional
-   * local image URI. Uploaders live in the owning screen so we can wire
-   * feedApi vs privateGroupsApi.
-   */
-  onSubmit: (content: string, imageUri?: string) => Promise<void> | void;
+  onSubmit: (content: string, imageUri?: string, visibility?: PostVisibility) => Promise<void> | void;
   loading?: boolean;
   placeholder?: string;
+  showVisibility?: boolean;
 }
 
-export default function Composer({ value, onChange, onSubmit, loading, placeholder }: Props) {
+const MENTION_RE = /(^|\s)@(\w{0,30})$/;
+
+export default function Composer({ value, onChange, onSubmit, loading, placeholder, showVisibility }: Props) {
   const { theme } = useSport();
   const { player } = useAuth();
   const toast = useToast();
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<PostVisibility>('Public');
+  const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionResults, setMentionResults] = useState<MentionUser[]>([]);
+  const searchSeq = useRef(0);
 
   const canSend = !!value.trim() || !!imageUri;
+
+  // Detect "@partial" right before the caret and search backend.
+  useEffect(() => {
+    const head = value.slice(0, selection.start);
+    const m = head.match(MENTION_RE);
+    if (!m) { setMentionQuery(null); setMentionResults([]); return; }
+    const q = m[2];
+    setMentionQuery(q);
+    if (q.length === 0) { setMentionResults([]); return; }
+    const seq = ++searchSeq.current;
+    const t = setTimeout(async () => {
+      try {
+        const r = await feedApi.searchUsers(q);
+        if (seq === searchSeq.current) setMentionResults(r.data.slice(0, 6));
+      } catch {
+        if (seq === searchSeq.current) setMentionResults([]);
+      }
+    }, 180);
+    return () => clearTimeout(t);
+  }, [value, selection.start]);
+
+  function applyMention(u: MentionUser) {
+    const head = value.slice(0, selection.start);
+    const tail = value.slice(selection.start);
+    const replaced = head.replace(MENTION_RE, (_full, pre) => `${pre}@${u.userName} `);
+    const next = replaced + tail;
+    onChange(next);
+    setMentionQuery(null);
+    setMentionResults([]);
+  }
 
   async function pickImage() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -43,8 +78,19 @@ export default function Composer({ value, onChange, onSubmit, loading, placehold
   }
 
   async function handleSend() {
-    await onSubmit(value, imageUri ?? undefined);
+    await onSubmit(value, imageUri ?? undefined, visibility);
     setImageUri(null);
+  }
+
+  const visIcon: any = visibility === 'Public' ? 'globe-outline'
+    : visibility === 'Followers' ? 'people-outline'
+    : visibility === 'Sport' ? 'tennisball-outline'
+    : 'lock-closed-outline';
+
+  function nextVis() {
+    const order: PostVisibility[] = ['Public', 'Followers', 'Sport', 'Private'];
+    const i = order.indexOf(visibility);
+    setVisibility(order[(i + 1) % order.length]);
   }
 
   return (
@@ -57,6 +103,7 @@ export default function Composer({ value, onChange, onSubmit, loading, placehold
           placeholderTextColor={theme.textMuted}
           value={value}
           onChangeText={onChange}
+          onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
           multiline
         />
         <Pressable
@@ -77,6 +124,33 @@ export default function Composer({ value, onChange, onSubmit, loading, placehold
         </Pressable>
       </View>
 
+      {/* Mention autocomplete */}
+      {mentionQuery !== null && mentionResults.length > 0 ? (
+        <View style={[styles.mentionList, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+          <FlatList
+            data={mentionResults}
+            keyExtractor={(u) => u.userId}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => applyMention(item)}
+                style={({ pressed }) => [styles.mentionRow, pressed && { opacity: 0.85 }]}
+              >
+                <Avatar name={item.fullName ?? item.userName} photoUrl={item.profilePhotoUrl} size={28} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.bodyStrong, { color: theme.textPrimary, fontSize: 13 }]} numberOfLines={1}>
+                    {item.fullName ?? item.userName}
+                  </Text>
+                  <Text style={[typography.caption, { color: theme.textMuted }]} numberOfLines={1}>
+                    @{item.userName}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+          />
+        </View>
+      ) : null}
+
       {/* Image preview */}
       {imageUri ? (
         <View style={styles.previewRow}>
@@ -87,14 +161,19 @@ export default function Composer({ value, onChange, onSubmit, loading, placehold
         </View>
       ) : null}
 
-      {/* Attach action */}
+      {/* Attach + visibility */}
       <View style={styles.actionsRow}>
         <Pressable onPress={pickImage} style={styles.attachBtn} hitSlop={8}>
           <Ionicons name="image-outline" size={16} color={theme.secondary} />
-          <View>
-            {/* Using native Text from RN to keep bundle small */}
-          </View>
         </Pressable>
+        {showVisibility !== false && (
+          <Pressable onPress={nextVis} style={styles.attachBtn} hitSlop={8}>
+            <Ionicons name={visIcon} size={14} color={theme.secondary} />
+            <Text style={[typography.caption, { color: theme.secondary, fontWeight: '700' }]}>
+              {visibility.toUpperCase()}
+            </Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -141,5 +220,16 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: 'rgba(0,0,0,0.65)',
     alignItems: 'center', justifyContent: 'center',
+  },
+
+  mentionList: {
+    marginLeft: 48,
+    borderWidth: 1, borderRadius: radii.md,
+    maxHeight: 200,
+    overflow: 'hidden',
+  },
+  mentionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.sm, paddingVertical: 6,
   },
 });

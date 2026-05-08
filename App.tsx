@@ -13,6 +13,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SportProvider } from './src/context/SportContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
+import { navigationRef } from './src/navigation/navigationRef';
 import { DEFAULT_THEME } from './src/theme';
 import { ToastProvider } from './src/components/ui';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
@@ -56,7 +57,7 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <SportProvider>
-            <NavigationContainer>
+            <NavigationContainer ref={navigationRef}>
               <StatusBar style="light" />
               <RootNavigator />
             </NavigationContainer>

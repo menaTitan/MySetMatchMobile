@@ -1,35 +1,70 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { matchesApi } from '../../api';
 import { useSport } from '../../context/SportContext';
 import type { MatchDetail } from '../../types';
 import { useFetchData } from '../../hooks/useFetchData';
+import { getHub } from '../../realtime/signalR';
 import SportPickerBar from '../../components/SportPickerBar';
-import { radii, shadows, spacing, typography } from '../../theme';
+import { radii, spacing, typography } from '../../theme';
 import { Card, EmptyState, LoadingView, PageHeader } from '../../components/ui';
 
-const POLL_MS = 8_000;
+const POLL_FALLBACK_MS = 8_000;
 
-export default function LiveScoreScreen() {
+export default function LiveScoreScreen({ route, navigation }: any) {
   const { currentSport, theme } = useSport();
+  const filterTournamentId: string | undefined = route?.params?.tournamentId;
+  const filterTournamentName: string | undefined = route?.params?.tournamentName;
   const { data, loading, refreshing, refresh, reload } = useFetchData<MatchDetail[]>(
-    async () => (await matchesApi.live({ sportId: currentSport?.id })).data,
-    [currentSport?.id],
+    async () => (await matchesApi.live({
+      sportId: currentSport?.id,
+      tournamentId: filterTournamentId,
+    })).data,
+    [currentSport?.id, filterTournamentId],
   );
   const matches = data ?? [];
+  const hubReady = useRef(false);
 
-  // Background refresh while the screen is focused (quiet reload, no spinner).
+  // SignalR realtime updates with polling fallback.
   useEffect(() => {
-    const t = setInterval(reload, POLL_MS);
-    return () => clearInterval(t);
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let cleanup: (() => void) | null = null;
+
+    (async () => {
+      try {
+        const hub = await getHub('liveScore');
+        hubReady.current = true;
+        const handler = () => reload();
+        hub.on('LiveScoreUpdated', handler);
+        hub.on('MatchCompleted', handler);
+        hub.on('LiveGameStarted', handler);
+        cleanup = () => {
+          hub.off('LiveScoreUpdated', handler);
+          hub.off('MatchCompleted', handler);
+          hub.off('LiveGameStarted', handler);
+        };
+      } catch {
+        // Fall back to polling.
+        pollTimer = setInterval(reload, POLL_FALLBACK_MS);
+      }
+    })();
+
+    // Always poll occasionally as a safety net (every 30s).
+    const safety = setInterval(reload, 30_000);
+
+    return () => {
+      if (pollTimer) clearInterval(pollTimer);
+      clearInterval(safety);
+      if (cleanup) cleanup();
+    };
   }, [reload]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
       <PageHeader
         title="Live Scores"
-        subtitle="Matches in progress right now"
+        subtitle={hubReady.current ? 'Real-time updates' : 'Matches in progress'}
         compact
         right={
           <View style={[styles.livePill, { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)' }]}>
@@ -39,6 +74,18 @@ export default function LiveScoreScreen() {
         }
       />
       <SportPickerBar />
+
+      {filterTournamentId ? (
+        <View style={[styles.filterBar, { backgroundColor: theme.featureBg, borderColor: theme.divider }]}>
+          <Ionicons name="trophy-outline" size={14} color={theme.secondary} />
+          <Text style={[typography.smallStrong, { color: theme.textSecondary, flex: 1 }]} numberOfLines={1}>
+            {filterTournamentName ?? 'Filtered tournament'}
+          </Text>
+          <Pressable onPress={() => navigation.setParams({ tournamentId: undefined, tournamentName: undefined })} hitSlop={8}>
+            <Ionicons name="close-circle" size={16} color={theme.textMuted} />
+          </Pressable>
+        </View>
+      ) : null}
 
       {loading ? <LoadingView /> : (
         <FlatList
@@ -141,6 +188,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill, borderWidth: 1,
   },
   livePillText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  filterBar: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    marginHorizontal: spacing.base, marginTop: spacing.xs,
+    paddingHorizontal: spacing.base, paddingVertical: spacing.sm,
+    borderRadius: radii.md, borderWidth: 1,
+  },
   pulseDot: { width: 6, height: 6, borderRadius: 3 },
 
   badge: {

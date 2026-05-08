@@ -1,69 +1,134 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, Pressable } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl, Pressable, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { leaderboardApi } from '../../api';
+import { leaderboardApi, locationsApi } from '../../api';
 import { useSport } from '../../context/SportContext';
+import { getHub } from '../../realtime/signalR';
 import type { LeaderboardEntry } from '../../types';
 import { useFetchData } from '../../hooks/useFetchData';
 import SportPickerBar from '../../components/SportPickerBar';
 import { radii, shadows, spacing, typography } from '../../theme';
-import { Avatar, EmptyState, LoadingView, PageHeader } from '../../components/ui';
+import { Avatar, EmptyState, HeroHeader, LoadingView, SegmentedTabs, type SegmentedTab } from '../../components/ui';
 
-const SCOPES = [
+const SCOPES: SegmentedTab<'global' | 'country' | 'region' | 'city'>[] = [
   { key: 'global',  label: 'Global',  icon: 'earth' },
   { key: 'country', label: 'Country', icon: 'flag' },
+  { key: 'region',  label: 'Region',  icon: 'map' },
   { key: 'city',    label: 'City',    icon: 'business' },
-] as const;
+];
 
 const MEDALS = ['trophy', 'medal', 'ribbon'] as const;
 const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
-type Scope = typeof SCOPES[number]['key'];
+type Scope = 'global' | 'country' | 'region' | 'city';
+type LocationOpt = { id: string; name: string };
 
 export default function LeaderboardScreen({ navigation }: any) {
   const { currentSport, theme } = useSport();
   const [scope, setScope] = useState<Scope>('global');
+  const [locationId, setLocationId] = useState<string | undefined>();
+  const [locationLabel, setLocationLabel] = useState<string | undefined>();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [options, setOptions] = useState<LocationOpt[]>([]);
+  const [loadingOpts, setLoadingOpts] = useState(false);
+
+  // Reset selection when scope flips between global/non-global, or when narrower.
+  useEffect(() => {
+    setLocationId(undefined);
+    setLocationLabel(undefined);
+  }, [scope]);
+
+  // Load options for the picker on demand. Country = list countries; region/city
+  // need a parent — without one we just show countries and let the user drill in.
+  async function openPicker() {
+    if (scope === 'global') return;
+    setPickerOpen(true);
+    setLoadingOpts(true);
+    try {
+      // For region and city scopes we still pick by country first (simplest UX)
+      // and let the server do the filtering by country if no narrower id is set.
+      if (scope === 'country' || scope === 'region' || scope === 'city') {
+        const r = await locationsApi.countries();
+        setOptions(r.data.map((c) => ({ id: c.id, name: c.name })));
+      }
+    } catch {
+      setOptions([]);
+    } finally { setLoadingOpts(false); }
+  }
+
+  function pickOption(opt: LocationOpt) {
+    setLocationId(opt.id);
+    setLocationLabel(opt.name);
+    setPickerOpen(false);
+  }
+
   const { data, loading, refreshing, refresh } = useFetchData<LeaderboardEntry[]>(
-    async () => (await leaderboardApi.get({ sportId: currentSport?.id, scope })).data,
-    [currentSport?.id, scope],
+    async () => (await leaderboardApi.get({
+      sportId: currentSport?.id,
+      scope,
+      locationId: scope === 'global' ? undefined : locationId,
+    })).data,
+    [currentSport?.id, scope, locationId],
   );
+
+  // Subscribe to LeaderboardUpdated broadcasts for the current scope group;
+  // when one fires we silently re-fetch in the background.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    let group: string | null = null;
+    (async () => {
+      try {
+        const hub = await getHub('liveScore');
+        // Server scope keys: "global", "country_{id}", "city_{id}".
+        group = scope === 'global'
+          ? 'global'
+          : (scope === 'country' && locationId) ? `country_${locationId}`
+          : (scope === 'city' && locationId)    ? `city_${locationId}`
+          : null;
+        if (!group) return;
+        await hub.invoke('JoinLeaderboardGroup', group).catch(() => {});
+        const handler = () => { refresh(); };
+        hub.on('LeaderboardUpdated', handler);
+        off = () => {
+          hub.off('LeaderboardUpdated', handler);
+          if (group) hub.invoke('LeaveLeaderboardGroup', group).catch(() => {});
+        };
+      } catch {}
+    })();
+    return () => { if (off) off(); };
+  }, [scope, locationId, refresh]);
   const entries = data ?? [];
   const top3 = entries.slice(0, 3);
   const rest = entries.slice(3);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.pageBg }]}>
-      <PageHeader
+      <HeroHeader
+        variant="compact"
         title={`${currentSport?.name ?? 'Global'} Leaderboard`}
         subtitle="See how you stack up against the best players"
       />
       <SportPickerBar />
 
-      {/* Scope chips */}
-      <View style={[styles.scopeRow, { backgroundColor: theme.cardBg, borderBottomColor: theme.divider }]}>
-        {SCOPES.map((s) => {
-          const active = scope === s.key;
-          return (
-            <Pressable
-              key={s.key}
-              onPress={() => setScope(s.key)}
-              style={[
-                styles.scopePill,
-                active
-                  ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                  : { backgroundColor: 'transparent', borderColor: theme.border },
-              ]}
-            >
-              <Ionicons name={s.icon as any} size={13} color={active ? '#fff' : theme.textSecondary} />
-              <Text style={[
-                typography.smallStrong,
-                { color: active ? '#fff' : theme.textSecondary },
-              ]}>{s.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <SegmentedTabs tabs={SCOPES} value={scope} onChange={setScope} variant="pill" />
+
+      {scope !== 'global' ? (
+        <Pressable
+          onPress={openPicker}
+          style={({ pressed }) => [
+            styles.locationBar,
+            { backgroundColor: theme.cardBg, borderColor: theme.border },
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <Ionicons name="location-outline" size={16} color={theme.secondary} />
+          <Text style={[typography.small, { color: theme.textPrimary, flex: 1 }]} numberOfLines={1}>
+            {locationLabel ?? `Pick a ${scope}`}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color={theme.textMuted} />
+        </Pressable>
+      ) : null}
 
       {loading ? <LoadingView /> : entries.length === 0 ? (
         <EmptyState icon="medal-outline" title="No rankings yet" message="Play matches to appear on the leaderboard." />
@@ -85,6 +150,40 @@ export default function LeaderboardScreen({ navigation }: any) {
           ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
         />
       )}
+
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <Pressable style={styles.modalScrim} onPress={() => setPickerOpen(false)}>
+          <Pressable
+            style={[styles.modalCard, { backgroundColor: theme.cardBg }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[typography.h3, { color: theme.textPrimary, marginBottom: spacing.sm }]}>
+              Choose location
+            </Text>
+            {loadingOpts ? <LoadingView /> : (
+              <FlatList
+                data={options}
+                keyExtractor={(o) => o.id}
+                renderItem={({ item }) => (
+                  <Pressable
+                    onPress={() => pickOption(item)}
+                    style={({ pressed }) => [
+                      styles.optRow,
+                      { borderBottomColor: theme.divider },
+                      pressed && { opacity: 0.85 },
+                    ]}
+                  >
+                    <Text style={[typography.body, { color: theme.textPrimary }]}>{item.name}</Text>
+                  </Pressable>
+                )}
+                ListEmptyComponent={
+                  <EmptyState icon="search-outline" title="No options" message="Nothing to choose from yet." />
+                }
+              />
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -182,18 +281,6 @@ function RankRow({ entry, onPress }: { entry: LeaderboardEntry; onPress?: () => 
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scopeRow: {
-    flexDirection: 'row', gap: spacing.sm,
-    paddingHorizontal: spacing.base, paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-  },
-  scopePill: {
-    flex: 1,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: radii.md, borderWidth: 1.5,
-  },
 
   podiumWrap: {
     padding: spacing.lg,
@@ -240,4 +327,23 @@ const styles = StyleSheet.create({
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+
+  locationBar: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    marginHorizontal: spacing.base, marginTop: spacing.xs,
+    paddingHorizontal: spacing.base, paddingVertical: spacing.sm,
+    borderRadius: radii.md, borderWidth: 1,
+  },
+  modalScrim: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center', padding: spacing.lg,
+  },
+  modalCard: {
+    maxHeight: '70%',
+    borderRadius: radii.lg, padding: spacing.base,
+  },
+  optRow: {
+    paddingVertical: spacing.sm + 2,
+    borderBottomWidth: 1,
+  },
 });

@@ -1,22 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, Modal, FlatList,
+  View, Text, StyleSheet, Pressable, FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { tournamentsApi, sportsApi, locationsApi } from '../../api';
 import { useSport } from '../../context/SportContext';
 import type { Sport } from '../../types';
 import { radii, spacing, typography } from '../../theme';
-import { Button, Card, Input, KeyboardAware, useToast } from '../../components/ui';
+import { BottomSheet, Button, Card, Input, KeyboardAware, useToast } from '../../components/ui';
 
 const TYPES = ['Local', 'Regional', 'National', 'International'] as const;
 const FORMATS = ['SingleElimination', 'RoundRobin', 'Mixed'] as const;
 
 interface PickerItem { id: string; name: string; }
 
-export default function CreateTournamentScreen({ navigation }: any) {
+export default function CreateTournamentScreen({ navigation, route }: any) {
   const { currentSport, theme } = useSport();
   const toast = useToast();
+  const editingId: string | undefined = route?.params?.edit ? route?.params?.id : undefined;
+  const isEdit = !!editingId;
 
   const [sports, setSports] = useState<Sport[]>([]);
   const [countries, setCountries] = useState<PickerItem[]>([]);
@@ -49,6 +51,40 @@ export default function CreateTournamentScreen({ navigation }: any) {
     locationsApi.countries().then(r => setCountries(r.data)).catch(() => {});
   }, []);
 
+  // When editing, pull current values into the form. We rely on the detail
+  // endpoint since it's already used elsewhere and returns the user-visible fields.
+  useEffect(() => {
+    if (!editingId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: t } = await tournamentsApi.detail(editingId);
+        if (cancelled) return;
+        navigation.setOptions?.({ title: 'Edit Tournament' });
+        setForm((f) => ({
+          ...f,
+          name: t.name ?? '',
+          description: (t as any).description ?? '',
+          venue: (t as any).venueAddress ?? '',
+          startDate: t.startDate ? t.startDate.slice(0, 10) : '',
+          endDate: (t as any).endDate ? (t as any).endDate.slice(0, 10) : '',
+          type: (t as any).type ?? f.type,
+          format: (t as any).format ?? f.format,
+          sportId: (t as any).sportId ?? f.sportId,
+          sportName: (t as any).sportName ?? f.sportName,
+          countryId: (t as any).countryId ?? '',
+          countryName: (t as any).country ?? '',
+          cityId: (t as any).cityId ?? '',
+          cityName: (t as any).city ?? '',
+          maxParticipants: (t as any).maxPlayers != null ? String((t as any).maxPlayers) : '',
+          entryFee: (t as any).entryFee != null ? String((t as any).entryFee) : '',
+          isDoubles: !!(t as any).isDoubles,
+        }));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [editingId, navigation]);
+
   useEffect(() => {
     if (!form.countryId) return;
     setForm(f => ({ ...f, cityId: '', cityName: '' }));
@@ -69,24 +105,31 @@ export default function CreateTournamentScreen({ navigation }: any) {
     if (end < start) { toast('End must be on/after start', 'warning'); return; }
 
     setSaving(true);
+    const payload = {
+      name: form.name.trim(),
+      description: form.description.trim() || undefined,
+      venue: form.venue.trim() || undefined,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      type: form.type,
+      format: form.format,
+      sportId: form.sportId,
+      countryId: form.countryId || undefined,
+      cityId: form.cityId || undefined,
+      maxParticipants: form.maxParticipants ? parseInt(form.maxParticipants) : undefined,
+      entryFee: form.entryFee ? parseFloat(form.entryFee) : undefined,
+      isDoubles: form.isDoubles,
+    };
     try {
-      const { data } = await tournamentsApi.create({
-        name: form.name.trim(),
-        description: form.description.trim() || undefined,
-        venue: form.venue.trim() || undefined,
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
-        type: form.type,
-        format: form.format,
-        sportId: form.sportId,
-        countryId: form.countryId || undefined,
-        cityId: form.cityId || undefined,
-        maxParticipants: form.maxParticipants ? parseInt(form.maxParticipants) : undefined,
-        entryFee: form.entryFee ? parseFloat(form.entryFee) : undefined,
-        isDoubles: form.isDoubles,
-      });
-      toast('Tournament created', 'success');
-      navigation.replace('TournamentDetail', { id: data.id });
+      if (isEdit && editingId) {
+        await tournamentsApi.update(editingId, payload);
+        toast('Tournament updated', 'success');
+        navigation.replace('TournamentDetail', { id: editingId });
+      } else {
+        const { data } = await tournamentsApi.create(payload);
+        toast('Tournament created', 'success');
+        navigation.replace('TournamentDetail', { id: data.id });
+      }
     } catch {
       // interceptor toasts error
     } finally { setSaving(false); }
@@ -163,11 +206,11 @@ export default function CreateTournamentScreen({ navigation }: any) {
         </Card>
 
         <Button
-          title="Create Tournament"
+          title={isEdit ? 'Save Changes' : 'Create Tournament'}
           variant="primary"
           size="lg"
           fullWidth
-          leftIcon="add-circle-outline"
+          leftIcon={isEdit ? 'save-outline' : 'add-circle-outline'}
           loading={saving}
           onPress={handleCreate}
         />
@@ -250,44 +293,34 @@ function SheetPicker({
   const [query, setQuery] = useState('');
   const filtered = searchable ? items.filter(i => i.name.toLowerCase().includes(query.toLowerCase())) : items;
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={[styles.sheet, { backgroundColor: theme.cardBg }]}>
-          <View style={styles.handle} />
-          <View style={styles.sheetHeader}>
-            <Text style={[typography.h2, { color: theme.primary }]}>{title}</Text>
-            <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.divider }]}>
-              <Ionicons name="close" size={18} color={theme.textSecondary} />
-            </Pressable>
-          </View>
-          {searchable ? (
-            <View style={[styles.search, { backgroundColor: theme.pageBg, borderColor: theme.border }]}>
-              <Ionicons name="search" size={16} color={theme.textMuted} />
-              <Input
-                placeholder="Search…"
-                containerStyle={{ flex: 1, marginBottom: 0 }}
-                value={query}
-                onChangeText={setQuery}
-              />
-            </View>
-          ) : null}
-          <FlatList
-            data={filtered}
-            keyExtractor={(i) => i.id}
-            renderItem={({ item }) => (
-              <Pressable
-                style={({ pressed }) => [styles.item, pressed && { backgroundColor: theme.pageBg }]}
-                onPress={() => { onSelect(item); setQuery(''); }}
-              >
-                <Text style={{ flex: 1, fontSize: 15, color: theme.textPrimary }}>{item.name}</Text>
-                <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
-              </Pressable>
-            )}
-            ItemSeparatorComponent={() => <View style={[styles.sep, { backgroundColor: theme.divider }]} />}
+    <BottomSheet visible={visible} onClose={onClose} title={title} scrollable={false}>
+      {searchable ? (
+        <View style={[styles.search, { backgroundColor: theme.pageBg, borderColor: theme.border }]}>
+          <Ionicons name="search" size={16} color={theme.textMuted} />
+          <Input
+            placeholder="Search…"
+            containerStyle={{ flex: 1, marginBottom: 0 }}
+            value={query}
+            onChangeText={setQuery}
           />
         </View>
-      </View>
-    </Modal>
+      ) : null}
+      <FlatList
+        data={filtered}
+        keyExtractor={(i) => i.id}
+        style={{ maxHeight: 480 }}
+        renderItem={({ item }) => (
+          <Pressable
+            style={({ pressed }) => [styles.item, pressed && { backgroundColor: theme.pageBg }]}
+            onPress={() => { onSelect(item); setQuery(''); }}
+          >
+            <Text style={{ flex: 1, fontSize: 15, color: theme.textPrimary }}>{item.name}</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+          </Pressable>
+        )}
+        ItemSeparatorComponent={() => <View style={[styles.sep, { backgroundColor: theme.divider }]} />}
+      />
+    </BottomSheet>
   );
 }
 
@@ -307,23 +340,12 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: {
-    borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl,
-    maxHeight: '75%', paddingBottom: spacing.lg,
-  },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', marginTop: 8 },
-  sheetHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm,
-  },
-  closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   search: {
-    marginHorizontal: spacing.lg, marginBottom: spacing.sm,
+    marginBottom: spacing.sm,
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 12, paddingVertical: 4,
     borderRadius: radii.md, borderWidth: 1,
   },
-  item: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: 14 },
-  sep: { height: 1, marginHorizontal: spacing.lg },
+  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
+  sep: { height: 1 },
 });

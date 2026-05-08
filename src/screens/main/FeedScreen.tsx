@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, FlatList, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { feedApi } from '../../api';
+import { feedApi, type PostVisibility } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
 import type { FeedPost } from '../../types';
@@ -11,7 +11,7 @@ import Composer from '../../components/Composer';
 import CommentSheet from '../../components/CommentSheet';
 import EditPostSheet from '../../components/EditPostSheet';
 import { spacing } from '../../theme';
-import { EmptyState, LoadingView, PageHeader } from '../../components/ui';
+import { EmptyState, HeroHeader, LoadingView } from '../../components/ui';
 
 export default function FeedScreen({ navigation }: any) {
   const { currentSport, theme } = useSport();
@@ -34,7 +34,7 @@ export default function FeedScreen({ navigation }: any) {
 
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
-  async function submitPost(content: string, imageUri?: string) {
+  async function submitPost(content: string, imageUri?: string, visibility?: PostVisibility) {
     const text = content.trim();
     if (!text && !imageUri) return;
     setPosting(true);
@@ -44,7 +44,9 @@ export default function FeedScreen({ navigation }: any) {
         const up = await feedApi.uploadImage(imageUri);
         imageUrl = up.data.url;
       }
-      const { data } = await feedApi.createPost({ content: text, sportId: currentSport?.id, imageUrl });
+      const { data } = await feedApi.createPost({
+        content: text, sportId: currentSport?.id, imageUrl, visibility,
+      });
       setPosts((prev) => [data, ...prev]);
       setNewPost('');
     } catch { Alert.alert('Error', 'Could not post. Please try again.'); }
@@ -55,11 +57,12 @@ export default function FeedScreen({ navigation }: any) {
     try { await feedApi.react(postId, kind); load(); } catch {}
   }
 
-  async function submitComment(text: string) {
+  async function submitComment(text: string, parentCommentId?: string) {
     if (!commentPost) return;
     try {
-      await feedApi.addComment(commentPost.id, text);
-      setCommentPost(null);
+      await feedApi.addComment(commentPost.id, text, parentCommentId);
+      // Keep sheet open after a reply so user sees the new thread; close otherwise.
+      if (!parentCommentId) setCommentPost(null);
       load();
     } catch { Alert.alert('Error', 'Could not post comment.'); }
   }
@@ -79,12 +82,12 @@ export default function FeedScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
-      <PageHeader title="Feed" subtitle="Latest from the community" compact />
+      <HeroHeader variant="compact" title="Feed" subtitle="Latest from the community" />
       <SportPickerBar />
       <Composer
         value={newPost}
         onChange={setNewPost}
-        onSubmit={(content, uri) => submitPost(content, uri)}
+        onSubmit={(content, uri, vis) => submitPost(content, uri, vis)}
         loading={posting}
         placeholder={`Share something about ${currentSport?.name ?? 'your sport'}…`}
       />

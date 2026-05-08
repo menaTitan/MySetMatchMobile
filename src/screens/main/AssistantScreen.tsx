@@ -3,13 +3,12 @@ import {
   View, Text, StyleSheet, FlatList, TextInput, KeyboardAvoidingView,
   Platform, Pressable, ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { aiChatApi, type AIMessage } from '../../api';
 import { useSport } from '../../context/SportContext';
 import { radii, shadows, spacing, typography } from '../../theme';
-import { useToast } from '../../components/ui';
+import { HeroHeader, useToast } from '../../components/ui';
 
 const SUGGESTIONS = [
   'How do tournaments work?',
@@ -29,32 +28,43 @@ export default function AssistantScreen() {
   async function send(text: string) {
     const content = text.trim();
     if (!content || busy) return;
-    const next: AIMessage[] = [...messages, { role: 'user', content }];
-    setMessages(next);
+    const userMsg: AIMessage = { role: 'user', content };
+    const conversation = [...messages, userMsg];
+    // Optimistically add the user turn AND a placeholder assistant turn we
+    // mutate as tokens stream in.
+    setMessages([...conversation, { role: 'assistant', content: '' }]);
     setInput('');
     setBusy(true);
+    let acc = '';
     try {
-      const { data } = await aiChatApi.send(next);
-      setMessages([...next, { role: 'assistant', content: data.text }]);
+      await aiChatApi.stream(conversation, (delta) => {
+        acc += delta;
+        setMessages((prev) => {
+          const out = prev.slice();
+          // Replace the trailing assistant placeholder with the accumulating text.
+          out[out.length - 1] = { role: 'assistant', content: acc };
+          return out;
+        });
+      });
     } catch {
+      // Strip the placeholder on hard failure.
+      setMessages((prev) => prev.slice(0, -1));
       toast("The assistant isn't available right now", 'error');
     } finally { setBusy(false); }
   }
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: theme.pageBg }}>
-      <LinearGradient colors={theme.heroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-        <View pointerEvents="none" style={[styles.orb, { backgroundColor: theme.accentLight }]} />
-        <View style={styles.heroRow}>
+      <HeroHeader
+        variant="compact"
+        title="AI Assistant"
+        subtitle="Ask anything about MySetMatch"
+        right={
           <View style={[styles.assistantIcon, { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: theme.accent }]}>
             <Ionicons name="sparkles" size={22} color={theme.accent} />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>AI Assistant</Text>
-            <Text style={styles.subtitle}>Ask anything about MySetMatch</Text>
-          </View>
-        </View>
-      </LinearGradient>
+        }
+      />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {messages.length === 0 ? (
@@ -81,11 +91,13 @@ export default function AssistantScreen() {
         ) : (
           <FlatList
             ref={listRef}
-            data={busy ? ([...messages, { role: 'assistant', content: '…' }] as AIMessage[]) : messages}
+            data={messages}
             keyExtractor={(_, i) => String(i)}
-            renderItem={({ item, index }) => (
-              <Bubble msg={item} typing={busy && index === messages.length} />
-            )}
+            renderItem={({ item, index }) => {
+              const isLast = index === messages.length - 1;
+              const empty = item.role === 'assistant' && item.content.length === 0;
+              return <Bubble msg={item} typing={busy && isLast && empty} />;
+            }}
             contentContainerStyle={{ padding: spacing.base, gap: spacing.sm }}
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           />
@@ -151,24 +163,10 @@ function Bubble({ msg, typing }: { msg: AIMessage; typing?: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    padding: spacing.lg,
-    borderBottomLeftRadius: radii.xxl,
-    borderBottomRightRadius: radii.xxl,
-    overflow: 'hidden',
-  },
-  orb: {
-    position: 'absolute',
-    width: 220, height: 220, borderRadius: 110,
-    top: -80, right: -60, opacity: 0.7,
-  },
-  heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   assistantIcon: {
-    width: 48, height: 48, borderRadius: radii.md,
+    width: 44, height: 44, borderRadius: radii.md,
     borderWidth: 1.5, alignItems: 'center', justifyContent: 'center',
   },
-  title: { color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
-  subtitle: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 },
 
   intro: {
     padding: spacing.base, gap: spacing.sm,

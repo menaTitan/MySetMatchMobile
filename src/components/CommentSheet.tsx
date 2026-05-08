@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator,
 } from 'react-native';
@@ -13,26 +13,52 @@ export interface CommentItem {
   authorName: string;
   content: string;
   createdDate: string;
+  parentCommentId?: string | null;
 }
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   comments: CommentItem[];
-  onSubmit: (text: string) => Promise<void> | void;
+  onSubmit: (text: string, parentCommentId?: string) => Promise<void> | void;
+}
+
+interface ThreadNode {
+  comment: CommentItem;
+  replies: CommentItem[];
 }
 
 export default function CommentSheet({ visible, onClose, comments, onSubmit }: Props) {
   const { theme } = useSport();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; authorName: string } | null>(null);
+
+  // Group: top-level comments → their replies. Anything with a parent that
+  // doesn't resolve gets surfaced as a top-level comment so nothing is lost.
+  const threads: ThreadNode[] = useMemo(() => {
+    const byId = new Map(comments.map((c) => [c.id, c]));
+    const roots: CommentItem[] = [];
+    const childrenOf = new Map<string, CommentItem[]>();
+    for (const c of comments) {
+      if (c.parentCommentId && byId.has(c.parentCommentId)) {
+        const arr = childrenOf.get(c.parentCommentId) ?? [];
+        arr.push(c);
+        childrenOf.set(c.parentCommentId, arr);
+      } else {
+        roots.push(c);
+      }
+    }
+    return roots.map((r) => ({ comment: r, replies: childrenOf.get(r.id) ?? [] }));
+  }, [comments]);
 
   async function submit() {
     if (!text.trim()) return;
     setSending(true);
     try {
-      await onSubmit(text.trim());
+      await onSubmit(text.trim(), replyingTo?.id);
       setText('');
+      setReplyingTo(null);
     } finally { setSending(false); }
   }
 
@@ -46,23 +72,20 @@ export default function CommentSheet({ visible, onClose, comments, onSubmit }: P
       contentStyle={{ paddingHorizontal: 0, paddingBottom: 0 }}
     >
       <FlatList
-        data={comments}
-        keyExtractor={(c) => c.id}
+        data={threads}
+        keyExtractor={(t) => t.comment.id}
         style={{ maxHeight: 360 }}
-        renderItem={({ item: c }) => (
-          <View style={styles.commentRow}>
-            <Avatar name={c.authorName} size={32} />
-            <View style={{ flex: 1 }}>
-              <View style={[styles.commentBubble, { backgroundColor: theme.pageBg }]}>
-                <Text style={[typography.smallStrong, { color: theme.primary }]}>{c.authorName}</Text>
-                <Text style={[typography.small, { color: theme.textPrimary, marginTop: 2 }]}>
-                  {c.content}
-                </Text>
+        renderItem={({ item: thread }) => (
+          <View style={{ gap: spacing.xs }}>
+            <CommentRow
+              c={thread.comment}
+              onReply={() => setReplyingTo({ id: thread.comment.id, authorName: thread.comment.authorName })}
+            />
+            {thread.replies.map((r) => (
+              <View key={r.id} style={{ marginLeft: 32 }}>
+                <CommentRow c={r} />
               </View>
-              <Text style={[typography.caption, { color: theme.textMuted, marginTop: 4, marginLeft: 4 }]}>
-                {timeAgo(c.createdDate)}
-              </Text>
-            </View>
+            ))}
           </View>
         )}
         ListEmptyComponent={
@@ -77,10 +100,22 @@ export default function CommentSheet({ visible, onClose, comments, onSubmit }: P
         keyboardShouldPersistTaps="handled"
       />
 
+      {replyingTo ? (
+        <View style={[styles.replyBanner, { backgroundColor: theme.featureBg }]}>
+          <Ionicons name="return-down-forward-outline" size={14} color={theme.secondary} />
+          <Text style={[typography.caption, { color: theme.textSecondary, flex: 1 }]} numberOfLines={1}>
+            Replying to {replyingTo.authorName}
+          </Text>
+          <Pressable onPress={() => setReplyingTo(null)} hitSlop={8}>
+            <Ionicons name="close" size={14} color={theme.textMuted} />
+          </Pressable>
+        </View>
+      ) : null}
+
       <View style={[styles.inputRow, { borderTopColor: theme.divider }]}>
         <TextInput
           style={[styles.input, { borderColor: theme.border, backgroundColor: theme.pageBg, color: theme.textPrimary }]}
-          placeholder="Write a comment…"
+          placeholder={replyingTo ? `Reply to ${replyingTo.authorName}…` : 'Write a comment…'}
           placeholderTextColor={theme.textMuted}
           value={text}
           onChangeText={setText}
@@ -104,6 +139,33 @@ export default function CommentSheet({ visible, onClose, comments, onSubmit }: P
   );
 }
 
+function CommentRow({ c, onReply }: { c: CommentItem; onReply?: () => void }) {
+  const { theme } = useSport();
+  return (
+    <View style={styles.commentRow}>
+      <Avatar name={c.authorName} size={28} />
+      <View style={{ flex: 1 }}>
+        <View style={[styles.commentBubble, { backgroundColor: theme.pageBg }]}>
+          <Text style={[typography.smallStrong, { color: theme.primary }]}>{c.authorName}</Text>
+          <Text style={[typography.small, { color: theme.textPrimary, marginTop: 2 }]}>
+            {c.content}
+          </Text>
+        </View>
+        <View style={styles.commentMeta}>
+          <Text style={[typography.caption, { color: theme.textMuted }]}>
+            {timeAgo(c.createdDate)}
+          </Text>
+          {onReply ? (
+            <Pressable onPress={onReply} hitSlop={6}>
+              <Text style={[typography.caption, { color: theme.secondary, fontWeight: '700' }]}>Reply</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function timeAgo(dateStr: string) {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
   if (diff < 60) return 'just now';
@@ -118,7 +180,15 @@ const styles = StyleSheet.create({
     padding: 10, borderRadius: radii.md,
     borderTopLeftRadius: 4,
   },
+  commentMeta: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    marginTop: 4, marginLeft: 4,
+  },
   empty: { alignItems: 'center', paddingVertical: spacing.xl },
+  replyBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+    paddingHorizontal: spacing.base, paddingVertical: 6,
+  },
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm,
     padding: spacing.sm + 2,

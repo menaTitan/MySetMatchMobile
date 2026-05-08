@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
-import { paymentApi, tournamentsApi } from '../../api';
+import { chatApi, paymentApi, tournamentsApi } from '../../api';
+import { API_BASE_URL } from '../../config/env';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
+import { getHub } from '../../realtime/signalR';
 import type { TournamentDetail } from '../../types';
 import { radii, spacing, typography } from '../../theme';
 import { Avatar, Button, Card, Chip, EmptyState, LoadingView, SectionHeader, useToast } from '../../components/ui';
@@ -19,6 +21,25 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => { load(); }, [id]);
+
+  // Tournament-level realtime: any score update inside this tournament
+  // emits TournamentMatchUpdate; refresh detail so registered/match counts stay current.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    (async () => {
+      try {
+        const hub = await getHub('liveScore');
+        await hub.invoke('JoinTournamentGroup', id).catch(() => {});
+        const handler = () => { load(); };
+        hub.on('TournamentMatchUpdate', handler);
+        off = () => {
+          hub.off('TournamentMatchUpdate', handler);
+          hub.invoke('LeaveTournamentGroup', id).catch(() => {});
+        };
+      } catch {}
+    })();
+    return () => { if (off) off(); };
+  }, [id]);
 
   async function load() {
     setLoading(true);
@@ -53,13 +74,23 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
   }
 
   async function handleUnregister() {
-    Alert.alert('Withdraw', 'Are you sure you want to withdraw from this tournament?', [
+    const inProgress = data?.status === 'InProgress';
+    const title = inProgress ? 'Withdraw from tournament' : 'Cancel registration';
+    const body = inProgress
+      ? 'You will be marked as withdrawn and any remaining matches will be forfeited. Continue?'
+      : 'Are you sure you want to cancel your registration?';
+    Alert.alert(title, body, [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Withdraw', style: 'destructive', onPress: async () => {
+        text: inProgress ? 'Withdraw' : 'Cancel registration',
+        style: 'destructive',
+        onPress: async () => {
           setActionLoading(true);
           try {
-            await tournamentsApi.unregister(id);
+            // Different semantics on the server: withdraw forfeits in-progress matches;
+            // unregister simply removes the registration row before play begins.
+            if (inProgress) await tournamentsApi.withdraw(id);
+            else await tournamentsApi.unregister(id);
             await load();
           } catch (err: any) {
             Alert.alert('Error', err?.response?.data?.message ?? 'Could not withdraw.');
@@ -151,6 +182,36 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
           />
         )}
 
+        {data.status === 'InProgress' && (
+          <Button
+            title="View Live Scores"
+            variant="ghost"
+            size="lg"
+            leftIcon="radio-outline"
+            uppercase={false}
+            onPress={() => navigation.navigate('LiveScore', { tournamentId: id, tournamentName: data.name })}
+            fullWidth
+          />
+        )}
+
+        {data.status === 'Completed' && (
+          <Button
+            title="Download Results PDF"
+            variant="ghost"
+            size="lg"
+            leftIcon="document-text-outline"
+            uppercase={false}
+            onPress={async () => {
+              const path = tournamentsApi.resultsPdfUrl(id);
+              const url = path.startsWith('http')
+                ? path
+                : `${API_BASE_URL}/api${path}`;
+              await WebBrowser.openBrowserAsync(url);
+            }}
+            fullWidth
+          />
+        )}
+
         {data.isOrganizer ? (
           <Button
             title="Manage Registrations"
@@ -159,6 +220,26 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
             leftIcon="people-outline"
             uppercase={false}
             onPress={() => navigation.navigate('ManageTournament', { id, name: data.name })}
+            fullWidth
+          />
+        ) : null}
+
+        {(data.isRegistered || data.isOrganizer) ? (
+          <Button
+            title="Tournament Chat"
+            variant="ghost"
+            size="lg"
+            leftIcon="chatbubbles-outline"
+            uppercase={false}
+            onPress={async () => {
+              try {
+                const r = await chatApi.createTournamentChat(id);
+                const root = navigation.getParent()?.getParent() ?? navigation.getParent() ?? navigation;
+                root.navigate('Community', { screen: 'ChatRoom', params: { roomId: r.data.id, title: data.name } });
+              } catch (err: any) {
+                Alert.alert('Error', err?.response?.data?.message ?? 'Could not open tournament chat.');
+              }
+            }}
             fullWidth
           />
         ) : null}

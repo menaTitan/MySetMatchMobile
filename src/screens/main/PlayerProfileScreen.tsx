@@ -1,17 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { playerApi, type PublicPlayerProfile, type RatingHistoryPoint } from '../../api';
 import { useSport } from '../../context/SportContext';
 import { useAuth } from '../../context/AuthContext';
 import { useFetchData } from '../../hooks/useFetchData';
+import { getHub } from '../../realtime/signalR';
 import MatchCard from '../../components/MatchCard';
 import RatingChart from '../../components/RatingChart';
 import SportIcon from '../../components/ui/SportIcon';
-import { radii, shadows, spacing, typography } from '../../theme';
-import { Avatar, Button, Card, EmptyState, LoadingView, SectionHeader, StatTile } from '../../components/ui';
+import { radii, spacing, typography } from '../../theme';
+import { Avatar, Button, Card, EmptyState, HeroHeader, LoadingView, SectionHeader, StatTile, useToast } from '../../components/ui';
 
 export default function PlayerProfileScreen({ route, navigation }: any) {
   const { playerId } = route.params;
@@ -28,6 +27,30 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
     [playerId],
   );
 
+  const toast = useToast();
+  // Live rating change banner — driven by PlayerRatingUpdated SignalR events.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    (async () => {
+      try {
+        const hub = await getHub('liveScore');
+        await hub.invoke('JoinPlayerGroup', playerId).catch(() => {});
+        const handler = (_pid: string, _newRating: number, change: number) => {
+          if (change == null) return;
+          const sign = change > 0 ? '+' : '';
+          toast(`Rating updated: ${sign}${change}`, change >= 0 ? 'success' : 'info');
+          refresh();
+        };
+        hub.on('PlayerRatingUpdated', handler);
+        off = () => {
+          hub.off('PlayerRatingUpdated', handler);
+          hub.invoke('LeavePlayerGroup', playerId).catch(() => {});
+        };
+      } catch {}
+    })();
+    return () => { if (off) off(); };
+  }, [playerId, refresh, toast]);
+
   if (loading || !data) return <LoadingView />;
 
   const { player, displayRating, globalRank, countryRank, wins, losses, winRate, totalMatches, sportRatings, recentMatches } = data;
@@ -35,50 +58,40 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: theme.primary }} />
-
       <ScrollView
         contentContainerStyle={{ paddingBottom: spacing.xxl }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.accent} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero */}
-        <LinearGradient
-          colors={theme.heroGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
-        >
-          <View pointerEvents="none" style={[styles.orb, { backgroundColor: theme.accentLight }]} />
-
-          <View style={styles.avatarWrap}>
+        <HeroHeader variant="standard" align="center">
+          <View style={styles.heroBody}>
             <View style={[styles.avatarRing, { borderColor: theme.accent, shadowColor: theme.accent }]}>
               <Avatar name={player.name} photoUrl={player.profilePhotoUrl} size={96} />
             </View>
-          </View>
 
-          <Text style={styles.name}>{player.name}</Text>
-          {player.clubName ? <Text style={styles.club}>{player.clubName}</Text> : null}
-          {(player.city || player.country) ? (
-            <View style={styles.locationRow}>
-              <Ionicons name="location" size={12} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.location}>
-                {player.city}{player.country ? `, ${player.country}` : ''}
-              </Text>
-            </View>
-          ) : null}
+            <Text style={styles.name}>{player.name}</Text>
+            {player.clubName ? <Text style={styles.club}>{player.clubName}</Text> : null}
+            {(player.city || player.country) ? (
+              <View style={styles.locationRow}>
+                <Ionicons name="location" size={12} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.location}>
+                  {player.city}{player.country ? `, ${player.country}` : ''}
+                </Text>
+              </View>
+            ) : null}
 
-          <View style={styles.ratingRow}>
-            <View style={[styles.ratingPill, { borderColor: theme.accent }]}>
-              <Text style={styles.ratingLbl}>{currentSport?.name?.toUpperCase() ?? 'GLOBAL'}</Text>
-              <Text style={[styles.ratingVal, { color: theme.accent }]}>{displayRating}</Text>
-            </View>
-            <View style={[styles.ratingPill, { borderColor: 'rgba(255,255,255,0.3)' }]}>
-              <Text style={styles.ratingLbl}>RANK</Text>
-              <Text style={styles.ratingVal}>#{globalRank}</Text>
+            <View style={styles.ratingRow}>
+              <View style={[styles.ratingPill, { borderColor: theme.accent }]}>
+                <Text style={styles.ratingLbl}>{currentSport?.name?.toUpperCase() ?? 'GLOBAL'}</Text>
+                <Text style={[styles.ratingVal, { color: theme.accent }]}>{displayRating}</Text>
+              </View>
+              <View style={[styles.ratingPill, { borderColor: 'rgba(255,255,255,0.3)' }]}>
+                <Text style={styles.ratingLbl}>RANK</Text>
+                <Text style={styles.ratingVal}>#{globalRank}</Text>
+              </View>
             </View>
           </View>
-        </LinearGradient>
+        </HeroHeader>
 
         <View style={{ padding: spacing.base, gap: spacing.base }}>
           {!isMe && me ? (
@@ -146,24 +159,11 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    alignItems: 'center',
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    borderBottomLeftRadius: radii.xxl,
-    borderBottomRightRadius: radii.xxl,
-    overflow: 'hidden',
-  },
-  orb: {
-    position: 'absolute',
-    width: 280, height: 280, borderRadius: 140,
-    top: -90, right: -80, opacity: 0.7,
-  },
-  avatarWrap: { marginBottom: spacing.md },
+  heroBody: { alignItems: 'center' },
   avatarRing: {
     padding: 3, borderRadius: 56, borderWidth: 3,
     shadowOpacity: 0.5, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+    marginBottom: spacing.md,
   },
   name: { color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
   club: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 2 },

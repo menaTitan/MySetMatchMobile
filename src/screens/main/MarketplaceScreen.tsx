@@ -2,7 +2,6 @@ import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, Pressable,
   TextInput, RefreshControl, Alert, Image,
-  Modal, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +14,7 @@ import {
   type MarketplaceCategory, type MarketplaceCondition,
 } from '../../types';
 import { radii, shadows, spacing, typography } from '../../theme';
-import { Button, Chip, EmptyState, Input, LoadingView, PageHeader, useToast } from '../../components/ui';
+import { BottomSheet, Button, Chip, EmptyState, HeroHeader, Input, LoadingView, useToast } from '../../components/ui';
 
 const MAX_PHOTOS = 8;
 
@@ -33,7 +32,7 @@ const CONDITION_COLOR: Record<string, { bg: string; fg: string }> = {
   'Poor':      { bg: 'rgba(239,68,68,0.12)',  fg: '#dc2626' },
 };
 
-export default function MarketplaceScreen() {
+export default function MarketplaceScreen({ navigation }: any) {
   const { theme } = useSport();
   const toast = useToast();
 
@@ -154,7 +153,10 @@ export default function MarketplaceScreen() {
   const renderListing = ({ item }: { item: MarketplaceListing }) => {
     const cond = CONDITION_COLOR[item.condition] ?? { bg: theme.divider, fg: theme.textSecondary };
     return (
-      <View style={[styles.card, { backgroundColor: theme.cardBg }, shadows.md]}>
+      <Pressable
+        onPress={() => navigation?.navigate?.('ListingDetail', { id: item.id })}
+        style={({ pressed }) => [styles.card, { backgroundColor: theme.cardBg }, shadows.md, pressed && { opacity: 0.92 }]}
+      >
         <View style={styles.cardImgWrap}>
           {item.imageUrls?.[0] ? (
             <Image source={{ uri: item.imageUrls[0] }} style={styles.cardImg} resizeMode="cover" />
@@ -208,13 +210,29 @@ export default function MarketplaceScreen() {
             </View>
           ) : null}
         </View>
-      </View>
+      </Pressable>
     );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.pageBg }]}>
-      <PageHeader title="Marketplace" subtitle="Buy & sell equipment with the community" compact />
+      <HeroHeader
+        variant="compact"
+        title="Marketplace"
+        subtitle="Buy & sell equipment with the community"
+        right={
+          <Pressable
+            onPress={() => navigation?.navigate?.('MyListings')}
+            style={{
+              width: 36, height: 36, borderRadius: 18,
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="cube-outline" size={18} color="#fff" />
+          </Pressable>
+        }
+      />
 
       {/* Search + filter */}
       <View style={[styles.searchBar, { backgroundColor: theme.cardBg, borderBottomColor: theme.divider }]}>
@@ -297,8 +315,8 @@ export default function MarketplaceScreen() {
         <Text style={[typography.smallStrong, { color: theme.primary, fontWeight: '800' }]}>Post</Text>
       </Pressable>
 
-      {/* Filter Modal */}
-      <BottomSheetModal visible={filterModal} onClose={() => setFilterModal(false)} title="Filter listings">
+      {/* Filter sheet */}
+      <BottomSheet visible={filterModal} onClose={() => setFilterModal(false)} title="Filter listings">
         <PickerField label="Category" value={category || 'All Categories'} onPress={() => setPickerFor('filterCat')} />
         <PickerField label="Condition" value={condition || 'Any Condition'} onPress={() => setPickerFor('filterCond')} />
         <Input
@@ -325,11 +343,10 @@ export default function MarketplaceScreen() {
           />
           <Button title="Apply" variant="primary" size="md" style={{ flex: 1 }} onPress={applyFilters} />
         </View>
-      </BottomSheetModal>
+      </BottomSheet>
 
-      {/* Create Modal */}
-      <BottomSheetModal visible={createModal} onClose={() => setCreateModal(false)} title="Post a listing" tall>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Create sheet */}
+      <BottomSheet visible={createModal} onClose={() => setCreateModal(false)} title="Post a listing" tall>
           <Input label="Title *" placeholder="e.g. Butterfly Timo Boll ALC Blade" value={form.title} onChangeText={(v) => setForm((f) => ({ ...f, title: v }))} />
           <Input label="Price ($) *" placeholder="0.00" value={form.price} keyboardType="decimal-pad" leftIcon="cash-outline" onChangeText={(v) => setForm((f) => ({ ...f, price: v.replace(/[^0-9.]/g, '') }))} />
           <PickerField label="Category *" value={form.category || 'Select category'} onPress={() => setPickerFor('category')} />
@@ -370,34 +387,46 @@ export default function MarketplaceScreen() {
             onPress={createListing}
             style={{ marginTop: spacing.base }}
           />
-        </KeyboardAvoidingView>
-      </BottomSheetModal>
+      </BottomSheet>
 
-      {/* Shared picker modal */}
-      <PickerListModal
+      {/* Shared picker sheet */}
+      <BottomSheet
         visible={pickerFor !== null}
+        onClose={() => setPickerFor(null)}
         title={
           pickerFor === 'category' || pickerFor === 'filterCat' ? 'Select Category'
           : pickerFor === 'condition' || pickerFor === 'filterCond' ? 'Select Condition'
           : 'Sort By'
         }
-        items={
-          pickerFor === 'category' || pickerFor === 'filterCat'
-            ? ['', ...MARKETPLACE_CATEGORIES].map((v) => ({ label: v || 'All Categories', value: v }))
-            : pickerFor === 'condition' || pickerFor === 'filterCond'
-            ? ['', ...MARKETPLACE_CONDITIONS].map((v) => ({ label: v || 'Any Condition', value: v }))
-            : SORT_OPTIONS.map((s) => ({ label: s.label, value: s.value }))
-        }
-        onSelect={(value) => {
-          if (pickerFor === 'category') setForm((f) => ({ ...f, category: value as MarketplaceCategory }));
-          else if (pickerFor === 'condition') setForm((f) => ({ ...f, condition: value as MarketplaceCondition }));
-          else if (pickerFor === 'filterCat') setCategory(value);
-          else if (pickerFor === 'filterCond') setCondition(value);
-          else if (pickerFor === 'sort') setSortBy(value as SortBy);
-          setPickerFor(null);
-        }}
-        onClose={() => setPickerFor(null)}
-      />
+      >
+        {(pickerFor === 'category' || pickerFor === 'filterCat'
+          ? ['', ...MARKETPLACE_CATEGORIES].map((v) => ({ label: v || 'All Categories', value: v }))
+          : pickerFor === 'condition' || pickerFor === 'filterCond'
+          ? ['', ...MARKETPLACE_CONDITIONS].map((v) => ({ label: v || 'Any Condition', value: v }))
+          : SORT_OPTIONS.map((s) => ({ label: s.label, value: s.value }))
+        ).map((item, i, arr) => (
+          <Pressable
+            key={item.value || `_empty_${i}`}
+            style={({ pressed }) => [
+              styles.pickerItem,
+              pressed && { backgroundColor: theme.pageBg },
+              i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.divider },
+            ]}
+            onPress={() => {
+              const value = item.value;
+              if (pickerFor === 'category') setForm((f) => ({ ...f, category: value as MarketplaceCategory }));
+              else if (pickerFor === 'condition') setForm((f) => ({ ...f, condition: value as MarketplaceCondition }));
+              else if (pickerFor === 'filterCat') setCategory(value);
+              else if (pickerFor === 'filterCond') setCondition(value);
+              else if (pickerFor === 'sort') setSortBy(value as SortBy);
+              setPickerFor(null);
+            }}
+          >
+            <Text style={{ fontSize: 15, color: theme.textPrimary, flex: 1 }}>{item.label}</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+          </Pressable>
+        ))}
+      </BottomSheet>
     </View>
   );
 }
@@ -418,68 +447,6 @@ function PickerField({ label, value, onPress }: { label: string; value: string; 
         <Ionicons name="chevron-down" size={16} color={theme.textMuted} />
       </Pressable>
     </View>
-  );
-}
-
-function BottomSheetModal({
-  visible, onClose, title, children, tall,
-}: { visible: boolean; onClose: () => void; title: string; children: React.ReactNode; tall?: boolean }) {
-  const { theme } = useSport();
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.sheet, { backgroundColor: theme.cardBg, maxHeight: tall ? '90%' : '75%' }]}>
-          <View style={styles.modalHandle} />
-          <View style={styles.modalHeader}>
-            <Text style={[typography.h2, { color: theme.primary }]}>{title}</Text>
-            <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.divider }]}>
-              <Ionicons name="close" size={18} color={theme.textSecondary} />
-            </Pressable>
-          </View>
-          <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl }}>
-            {children}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function PickerListModal({
-  visible, onClose, items, onSelect, title,
-}: {
-  visible: boolean; onClose: () => void; items: { label: string; value: string }[];
-  onSelect: (v: string) => void; title: string;
-}) {
-  const { theme } = useSport();
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.sheet, { backgroundColor: theme.cardBg }]}>
-          <View style={styles.modalHandle} />
-          <View style={styles.modalHeader}>
-            <Text style={[typography.h2, { color: theme.primary }]}>{title}</Text>
-            <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.divider }]}>
-              <Ionicons name="close" size={18} color={theme.textSecondary} />
-            </Pressable>
-          </View>
-          <FlatList
-            data={items}
-            keyExtractor={(i) => i.value}
-            renderItem={({ item }) => (
-              <Pressable
-                style={({ pressed }) => [styles.pickerItem, pressed && { backgroundColor: theme.pageBg }]}
-                onPress={() => onSelect(item.value)}
-              >
-                <Text style={{ fontSize: 15, color: theme.textPrimary, flex: 1 }}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
-              </Pressable>
-            )}
-            ItemSeparatorComponent={() => <View style={[styles.sep, { backgroundColor: theme.divider }]} />}
-          />
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -534,28 +501,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8,
   },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: {
-    borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl,
-    maxHeight: '75%', paddingBottom: spacing.lg,
-  },
-  modalHandle: {
-    alignSelf: 'center', width: 40, height: 4, borderRadius: 2,
-    backgroundColor: '#E2E8F0', marginTop: 8,
-  },
-  modalHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm,
-  },
-  closeBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
-  },
   pickerItem: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: spacing.lg, paddingVertical: 14,
+    paddingVertical: 14,
   },
-  sep: { height: 1, marginHorizontal: spacing.lg },
   pickerRow: {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1.5, borderRadius: radii.md,
