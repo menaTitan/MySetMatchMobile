@@ -25,12 +25,17 @@ export default function SportIcon({
   const match = trimmed.match(/fa-([a-z0-9-]+)/i);
   const name = match ? match[1] : 'circle';
 
-  // Remap a few web-only FA names to FA5 mobile equivalents
+  // Remap web (FA6) names to FA5 mobile equivalents. Anything not in this
+  // table that doesn't exist in FA5 falls through to the catch handler below
+  // and renders the bullet glyph instead of warning forever.
   const REMAP: Record<string, string> = {
     'table-tennis-paddle-ball': 'table-tennis',
     'racquet': 'table-tennis',
     'paddle-ball': 'table-tennis',
     'baseball-bat-ball': 'baseball-ball',
+    // FA6 → FA5 sport-icon swaps used by the backend
+    'feather-pointed': 'feather',
+    'circle-dot': 'dot-circle',
   };
   const iconName = (REMAP[name] ?? name) as any;
 
