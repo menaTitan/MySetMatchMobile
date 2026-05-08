@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +20,7 @@ const HEADER_H = 36;
 const TREE_PAD = spacing.base;
 const TREE_AVATAR = 24;
 const LIST_AVATAR = 32;
+const STANDINGS_AVATAR = 28;
 
 /**
  * Tournament bracket — Group Stage section first, then Knockout Stage as a
@@ -145,12 +146,21 @@ function computeStandings(matches: BracketMatch[]): PlayerStanding[] {
 function GroupSection({ round }: { round: BracketRound }) {
   const { theme } = useSport();
   const standings = useMemo(() => computeStandings(round.matches), [round.matches]);
+  // Each group section starts expanded so the standings + matches are visible
+  // out of the box; the organizer can collapse a group to free up screen real
+  // estate when they're working on a different one.
+  const [open, setOpen] = useState(true);
+
   return (
     <View style={{ marginBottom: spacing.lg, paddingHorizontal: spacing.base }}>
-      <View style={[
-        groupStyles.banner,
-        { backgroundColor: theme.featureBg, borderColor: `${theme.accent}40` },
-      ]}>
+      <Pressable
+        onPress={() => setOpen((x) => !x)}
+        style={({ pressed }) => [
+          groupStyles.banner,
+          { backgroundColor: theme.featureBg, borderColor: `${theme.accent}40` },
+          pressed && { opacity: 0.85 },
+        ]}
+      >
         <View style={[groupStyles.bannerBar, { backgroundColor: theme.accent }]} />
         <View style={{ flex: 1 }}>
           <Text style={[typography.overline, { color: theme.accent, fontSize: 10 }]}>
@@ -169,12 +179,20 @@ function GroupSection({ round }: { round: BracketRound }) {
             {standings.length}
           </Text>
         </View>
-      </View>
+        <Ionicons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={theme.textSecondary}
+          style={{ marginLeft: spacing.sm }}
+        />
+      </Pressable>
 
-      {standings.length > 0 ? (
+      {open && standings.length > 0 ? (
         <View style={[groupStyles.table, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
           <View style={[groupStyles.tableHeader, { borderBottomColor: theme.border }]}>
+            <View style={{ width: 3 }} />
             <Text style={[groupStyles.col, groupStyles.colRank, { color: theme.textMuted }]}>#</Text>
+            <View style={{ width: STANDINGS_AVATAR + spacing.sm }} />
             <Text style={[groupStyles.col, groupStyles.colPlayer, { color: theme.textMuted }]}>PLAYER</Text>
             <Text style={[groupStyles.col, groupStyles.colNum, { color: theme.textMuted }]}>P</Text>
             <Text style={[groupStyles.col, groupStyles.colNum, { color: theme.textMuted }]}>W</Text>
@@ -182,70 +200,101 @@ function GroupSection({ round }: { round: BracketRound }) {
             <Text style={[groupStyles.col, groupStyles.colSets, { color: theme.textMuted }]}>SETS</Text>
             <Text style={[groupStyles.col, groupStyles.colNum, { color: theme.textMuted }]}>PTS</Text>
           </View>
-          {standings.map((row, i) => (
-            <Pressable
-              key={row.id}
-              onPress={() => navigate('PlayerProfile', { playerId: row.id })}
-              style={({ pressed }) => [
-                groupStyles.tableRow,
-                {
-                  borderBottomColor: theme.divider,
-                  borderBottomWidth: i === standings.length - 1 ? 0 : 1,
-                },
-                pressed && { backgroundColor: theme.pageBgTint },
-              ]}
-            >
-              <Text style={[
-                groupStyles.col, groupStyles.colRank,
-                {
-                  color: i === 0 ? theme.accent : theme.textMuted,
-                  fontFamily: typography.display.fontFamily,
-                  fontSize: 14,
-                },
-              ]}>
-                {i + 1}
-              </Text>
-              <Text
-                style={[
-                  groupStyles.col, groupStyles.colPlayer,
-                  typography.bodyStrong,
-                  { color: theme.textPrimary, fontSize: 13 },
+          {standings.map((row, i) => {
+            // Top 2 advance to the knockout — highlight with a green accent stripe
+            // and bold name. Mirrors the website's qualified-player styling.
+            const qualified = i < 2;
+            return (
+              <Pressable
+                key={row.id}
+                onPress={() => navigate('PlayerProfile', { playerId: row.id })}
+                style={({ pressed }) => [
+                  groupStyles.tableRow,
+                  {
+                    backgroundColor: qualified ? 'rgba(34,197,94,0.08)' : 'transparent',
+                    borderBottomColor: theme.divider,
+                    borderBottomWidth: i === standings.length - 1 ? 0 : 1,
+                  },
+                  pressed && { backgroundColor: theme.pageBgTint },
                 ]}
-                numberOfLines={1}
               >
-                {row.name}
-              </Text>
-              <NumCell value={row.played} color={theme.textSecondary} />
-              <NumCell value={row.wins}   color={theme.successGreen} bold />
-              <NumCell value={row.losses} color={theme.dangerRed} />
-              <Text style={[
-                groupStyles.col, groupStyles.colSets,
-                { color: theme.textPrimary, fontFamily: typography.display.fontFamily, fontSize: 13 },
-              ]}>
-                {row.setsWon}–{row.setsLost}
-              </Text>
-              <Text style={[
-                groupStyles.col, groupStyles.colNum,
-                {
-                  color: theme.accent,
-                  fontFamily: typography.display.fontFamily,
-                  fontSize: 16,
-                  letterSpacing: 0.4,
-                },
-              ]}>
-                {row.points}
-              </Text>
-            </Pressable>
-          ))}
+                <View style={[
+                  groupStyles.qualifiedBar,
+                  { backgroundColor: qualified ? theme.successGreen : 'transparent' },
+                ]} />
+                <Text style={[
+                  groupStyles.col, groupStyles.colRank,
+                  {
+                    color: qualified ? theme.successGreen : theme.textMuted,
+                    fontFamily: typography.display.fontFamily,
+                    fontSize: 14,
+                  },
+                ]}>
+                  {i + 1}
+                </Text>
+                <Avatar
+                  name={row.name}
+                  photoUrl={row.photoUrl}
+                  size={STANDINGS_AVATAR}
+                  borderColor={qualified ? theme.successGreen : undefined}
+                />
+                <Text
+                  style={[
+                    groupStyles.col, groupStyles.colPlayer,
+                    typography.bodyStrong,
+                    {
+                      color: qualified ? '#4ADE80' : theme.textPrimary,
+                      fontSize: 13,
+                      fontWeight: qualified ? '800' : '600',
+                      marginLeft: spacing.sm,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {row.name}
+                </Text>
+                <NumCell value={row.played} color={theme.textSecondary} />
+                <NumCell value={row.wins}   color={theme.successGreen} bold />
+                <NumCell value={row.losses} color={theme.dangerRed} />
+                <Text style={[
+                  groupStyles.col, groupStyles.colSets,
+                  { color: theme.textPrimary, fontFamily: typography.display.fontFamily, fontSize: 13 },
+                ]}>
+                  {row.setsWon}–{row.setsLost}
+                </Text>
+                <Text style={[
+                  groupStyles.col, groupStyles.colNum,
+                  {
+                    color: qualified ? theme.successGreen : theme.accent,
+                    fontFamily: typography.display.fontFamily,
+                    fontSize: 16,
+                    letterSpacing: 0.4,
+                  },
+                ]}>
+                  {row.points}
+                </Text>
+              </Pressable>
+            );
+          })}
+          <View style={[groupStyles.legendRow, { borderTopColor: theme.divider }]}>
+            <View style={[groupStyles.legendDot, { backgroundColor: theme.successGreen }]} />
+            <Text style={[typography.caption, { color: theme.textMuted, fontSize: 10 }]}>
+              TOP 2 ADVANCE TO KNOCKOUT
+            </Text>
+          </View>
         </View>
       ) : null}
 
-      <Text style={[typography.overline, { color: theme.textMuted, marginTop: spacing.md, marginBottom: spacing.sm, fontSize: 10 }]}>
-        MATCHES · {round.matches.length}
-      </Text>
-      {round.matches.map((m, mi) => (
-        <ListMatchCard key={m.id ?? mi} match={m} />
-      ))}
+      {open ? (
+        <>
+          <Text style={[typography.overline, { color: theme.textMuted, marginTop: spacing.md, marginBottom: spacing.sm, fontSize: 10 }]}>
+            MATCHES · {round.matches.length}
+          </Text>
+          {round.matches.map((m, mi) => (
+            <ListMatchCard key={m.id ?? mi} match={m} />
+          ))}
+        </>
+      ) : null}
     </View>
   );
 }
@@ -300,6 +349,25 @@ const groupStyles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: spacing.sm + 2,
+  },
+  qualifiedBar: {
+    width: 3,
+    alignSelf: 'stretch',
+    marginRight: spacing.sm,
+    marginLeft: -spacing.sm - 2,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 2,
   },
   col: {
     fontSize: 11,
