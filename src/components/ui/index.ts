@@ -14,6 +14,7 @@ export { default as BottomSheet } from './BottomSheet';
 export { default as ListRow } from './ListRow';
 export { default as LoadingView } from './LoadingView';
 export { default as PageHeader } from './PageHeader';
+export { default as PhotoLightbox } from './PhotoLightbox';
 export { default as Screen } from './Screen';
 export { default as SearchBar } from './SearchBar';
 export { default as SectionHeader } from './SectionHeader';

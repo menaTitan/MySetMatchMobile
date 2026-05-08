@@ -7,7 +7,7 @@ import { useSport } from '../../context/SportContext';
 import { playerApi } from '../../api';
 import type { SportRating } from '../../types';
 import { radii, spacing, typography } from '../../theme';
-import { Avatar, Button, Card, FeatureTileGrid, HeroHeader, ListRow, SectionHeader } from '../../components/ui';
+import { Avatar, Button, Card, FeatureTileGrid, HeroHeader, ListRow, PhotoLightbox, SectionHeader } from '../../components/ui';
 import SportIcon from '../../components/ui/SportIcon';
 
 export default function ProfileScreen({ navigation }: any) {
@@ -15,6 +15,7 @@ export default function ProfileScreen({ navigation }: any) {
   const { theme } = useSport();
   const [sportRatings, setSportRatings] = useState<SportRating[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -56,7 +57,12 @@ export default function ProfileScreen({ navigation }: any) {
                 { borderColor: theme.accent, shadowColor: theme.accent },
               ]}
             >
-              <Avatar name={player.name} photoUrl={player.profilePhotoUrl} size={96} />
+              <Avatar
+                name={player.name}
+                photoUrl={player.profilePhotoUrl}
+                size={96}
+                onPress={() => setPhotoOpen(true)}
+              />
             </View>
 
             <Text style={styles.name}>{player.name}</Text>
@@ -89,10 +95,17 @@ export default function ProfileScreen({ navigation }: any) {
             <FeatureTileGrid
               variant="compact"
               tiles={[
-                { key: 'edit',    icon: 'create-outline',   label: 'Edit Profile',  tint: 'sport',  onPress: () => navigation.navigate('EditProfile') },
-                { key: 'history', icon: 'list-outline',     label: 'History',       tint: 'blue',   onPress: () => navigation.navigate('MatchHistory') },
-                { key: 'pay',     icon: 'card-outline',     label: 'Payments',      tint: 'green',  onPress: () => navigation.navigate('PaymentHistory') },
-                { key: 'assist',  icon: 'sparkles-outline', label: 'Assistant',     tint: 'accent', onPress: () => navigation.navigate('Assistant') },
+                {
+                  key: 'profile', icon: 'person-outline', label: 'My Profile', tint: 'sport',
+                  // PlayerProfile lives on the root stack (above the tabs).
+                  onPress: () => {
+                    const root = navigation.getParent()?.getParent() ?? navigation.getParent() ?? navigation;
+                    root.navigate('PlayerProfile', { playerId: player.id });
+                  },
+                },
+                { key: 'history', icon: 'list-outline',     label: 'History',   tint: 'blue',   onPress: () => navigation.navigate('MatchHistory') },
+                { key: 'pay',     icon: 'card-outline',     label: 'Payments',  tint: 'green',  onPress: () => navigation.navigate('PaymentHistory') },
+                { key: 'assist',  icon: 'sparkles-outline', label: 'Assistant', tint: 'accent', onPress: () => navigation.navigate('Assistant') },
               ]}
             />
           </View>
@@ -214,6 +227,13 @@ export default function ProfileScreen({ navigation }: any) {
           />
         </View>
       </ScrollView>
+
+      <PhotoLightbox
+        visible={photoOpen}
+        photoUrl={player.profilePhotoUrl}
+        caption={player.name}
+        onClose={() => setPhotoOpen(false)}
+      />
     </View>
   );
 }

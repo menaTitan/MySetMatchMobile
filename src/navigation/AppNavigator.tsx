@@ -264,6 +264,11 @@ export default function AppNavigator() {
           title: route.params?.opponentName ? `vs ${route.params.opponentName}` : 'Head to Head',
         })}
       />
+      <RootStack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ title: 'Edit Profile' }}
+      />
     </RootStack.Navigator>
   );
 }

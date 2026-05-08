@@ -10,7 +10,9 @@ import { BottomSheet } from './ui';
 
 export interface CommentItem {
   id: string;
+  authorId?: string;
   authorName: string;
+  authorPhotoUrl?: string;
   content: string;
   createdDate: string;
   parentCommentId?: string | null;
@@ -143,7 +145,7 @@ function CommentRow({ c, onReply }: { c: CommentItem; onReply?: () => void }) {
   const { theme } = useSport();
   return (
     <View style={styles.commentRow}>
-      <Avatar name={c.authorName} size={28} />
+      <Avatar name={c.authorName} photoUrl={c.authorPhotoUrl} size={28} playerId={c.authorId} />
       <View style={{ flex: 1 }}>
         <View style={[styles.commentBubble, { backgroundColor: theme.pageBg }]}>
           <Text style={[typography.smallStrong, { color: theme.primary }]}>{c.authorName}</Text>

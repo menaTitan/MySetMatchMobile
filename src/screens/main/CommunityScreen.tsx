@@ -7,7 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { feedApi, privateGroupsApi } from '../../api';
 import { useSport } from '../../context/SportContext';
-import type { FeedPost, PrivateGroup } from '../../types';
+import type { FeedPost, PrivateGroup, PrivatePost } from '../../types';
 import SportPickerBar from '../../components/SportPickerBar';
 import PostCard from '../../components/PostCard';
 import Composer from '../../components/Composer';
@@ -17,11 +17,12 @@ import { useAuth } from '../../context/AuthContext';
 import { radii, shadows, spacing, typography } from '../../theme';
 import { Avatar, BottomSheet, Button, Card, Chip, EmptyState, HeroHeader, Input, LoadingView, SegmentedTabs } from '../../components/ui';
 
-type Tab = 'public' | 'groups';
+type Tab = 'public' | 'private';
 
 export default function CommunityScreen({ navigation }: any) {
   const { theme } = useSport();
   const [tab, setTab] = useState<Tab>('public');
+  const [groupsOpen, setGroupsOpen] = useState(false);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.pageBg }]}>
@@ -30,17 +31,30 @@ export default function CommunityScreen({ navigation }: any) {
         title="Community"
         subtitle="Connect with players & share updates"
         right={
-          <Pressable
-            onPress={() => navigation.navigate('ChatList')}
-            style={({ pressed }) => [
-              styles.chatBtn,
-              { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)' },
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <Ionicons name="chatbubbles" size={16} color="#fff" />
-            <Text style={[typography.smallStrong, { color: '#fff' }]}>Chats</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable
+              onPress={() => setGroupsOpen(true)}
+              style={({ pressed }) => [
+                styles.iconBtn,
+                { backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.22)' },
+                pressed && { opacity: 0.8 },
+              ]}
+              hitSlop={6}
+            >
+              <Ionicons name="people-outline" size={16} color="#fff" />
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.navigate('ChatList')}
+              style={({ pressed }) => [
+                styles.iconBtn,
+                { backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.22)' },
+                pressed && { opacity: 0.8 },
+              ]}
+              hitSlop={6}
+            >
+              <Ionicons name="chatbubbles-outline" size={16} color="#fff" />
+            </Pressable>
+          </View>
         }
       />
 
@@ -50,12 +64,20 @@ export default function CommunityScreen({ navigation }: any) {
         value={tab}
         onChange={(k) => setTab(k as Tab)}
         tabs={[
-          { key: 'public', label: 'Public', icon: 'globe-outline' },
-          { key: 'groups', label: 'My Groups', icon: 'lock-closed-outline' },
+          { key: 'public',  label: 'Public',  icon: 'globe-outline' },
+          { key: 'private', label: 'Private', icon: 'lock-closed-outline' },
         ]}
       />
 
-      {tab === 'public' ? <PublicFeed /> : <MyGroups navigation={navigation} />}
+      {tab === 'public'
+        ? <PublicFeed />
+        : <PrivateFeed navigation={navigation} onManageGroups={() => setGroupsOpen(true)} />}
+
+      <ManageGroupsSheet
+        visible={groupsOpen}
+        onClose={() => setGroupsOpen(false)}
+        navigation={navigation}
+      />
     </View>
   );
 }
@@ -186,174 +208,341 @@ function PublicFeed() {
   );
 }
 
-// ── My Groups ─────────────────────────────────────────────────────────────────
+// ── Private Feed (aggregates posts from all groups the user belongs to) ──────
 
-function MyGroups({ navigation }: any) {
+interface PrivateFeedItem {
+  groupId: string;
+  groupName: string;
+  post: PrivatePost;
+}
+
+function PrivateFeed({ navigation, onManageGroups }: { navigation: any; onManageGroups: () => void }) {
   const { theme } = useSport();
-  const [groups, setGroups] = useState<PrivateGroup[]>([]);
+  const { player: me } = useAuth();
+  const [items, setItems] = useState<PrivateFeedItem[]>([]);
+  const [groupCount, setGroupCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [createModal, setCreateModal] = useState(false);
-  const [groupName, setGroupName] = useState('');
-  const [groupDesc, setGroupDesc] = useState('');
-  const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const { data } = await privateGroupsApi.myGroups();
-      setGroups(data ?? []);
+      const { data: groups } = await privateGroupsApi.myGroups();
+      setGroupCount(groups.length);
+      // Fetch first page of posts from each group in parallel.
+      const results = await Promise.all(
+        groups.map((g) =>
+          privateGroupsApi.posts(g.id)
+            .then((r) => ({ group: g, items: r.data.items }))
+            .catch(() => null),
+        ),
+      );
+      const all: PrivateFeedItem[] = [];
+      for (const r of results) {
+        if (!r) continue;
+        for (const post of r.items) {
+          all.push({ groupId: r.group.id, groupName: r.group.name, post });
+        }
+      }
+      all.sort((a, b) =>
+        new Date(b.post.createdDate).getTime() - new Date(a.post.createdDate).getTime(),
+      );
+      setItems(all);
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
+  async function react(it: PrivateFeedItem, kind: 'Like' | 'Love' | 'Celebrate') {
+    try { await privateGroupsApi.react(it.groupId, it.post.id, kind); load(); } catch {}
+  }
+
+  if (loading) return <LoadingView />;
+
+  if (items.length === 0) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <EmptyState
+          icon="lock-closed-outline"
+          title={groupCount === 0 ? 'No private groups yet' : 'No posts in your groups yet'}
+          message={
+            groupCount === 0
+              ? 'Create or join a private group to share with teammates or your club.'
+              : 'Posts from your groups will appear here.'
+          }
+          action={
+            <Button
+              title={groupCount === 0 ? 'Manage Groups' : 'Open Groups'}
+              variant="primary"
+              size="md"
+              leftIcon="people-outline"
+              onPress={onManageGroups}
+            />
+          }
+        />
+      </View>
+    );
+  }
+
+  return (
+    <FlatList
+      data={items}
+      keyExtractor={(e) => `${e.groupId}-${e.post.id}`}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); load(); }}
+          tintColor={theme.accent}
+        />
+      }
+      contentContainerStyle={{ padding: spacing.base }}
+      ListHeaderComponent={
+        <View style={[
+          styles.privateBanner,
+          { backgroundColor: theme.featureBg, borderColor: theme.border },
+        ]}>
+          <Ionicons name="lock-closed" size={14} color={theme.accent} />
+          <Text style={[typography.smallStrong, { color: theme.textPrimary, flex: 1 }]}>
+            Posts from your private groups
+          </Text>
+          <Pressable onPress={onManageGroups} hitSlop={6}>
+            <Text style={[typography.overline, { color: theme.accent, fontSize: 10 }]}>
+              MANAGE
+            </Text>
+          </Pressable>
+        </View>
+      }
+      renderItem={({ item }) => (
+        <View style={{ marginBottom: spacing.sm }}>
+          <Pressable
+            onPress={() =>
+              navigation.navigate('GroupDetail', {
+                groupId: item.groupId, groupName: item.groupName,
+              })
+            }
+            hitSlop={4}
+            style={({ pressed }) => [
+              styles.privateGroupTag,
+              { borderColor: `${theme.accent}40` },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Ionicons name="lock-closed" size={10} color={theme.accent} />
+            <Text style={[typography.overline, { color: theme.accent, fontSize: 10 }]}>
+              {item.groupName.toUpperCase()}
+            </Text>
+            <Ionicons name="chevron-forward" size={10} color={theme.accent} />
+          </Pressable>
+          <PostCard
+            post={item.post}
+            isOwner={!!me && item.post.authorId === me.id}
+            onReact={(k) => react(item, k)}
+            onComment={() =>
+              navigation.navigate('GroupDetail', {
+                groupId: item.groupId, groupName: item.groupName,
+              })
+            }
+          />
+        </View>
+      )}
+    />
+  );
+}
+
+// ── Manage Groups bottom sheet (lists groups, lets user create one) ──────────
+
+function ManageGroupsSheet({
+  visible, onClose, navigation,
+}: { visible: boolean; onClose: () => void; navigation: any }) {
+  const { theme } = useSport();
+  const [groups, setGroups] = useState<PrivateGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [createMode, setCreateMode] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupDesc, setGroupDesc] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data } = await privateGroupsApi.myGroups();
+      setGroups(data ?? []);
+    } catch {}
+    finally { setLoading(false); }
+  }, []);
+
+  React.useEffect(() => {
+    if (visible) load();
+    if (!visible) {
+      setCreateMode(false);
+      setGroupName('');
+      setGroupDesc('');
+    }
+  }, [visible, load]);
+
   async function createGroup() {
     if (!groupName.trim()) { Alert.alert('Error', 'Group name is required'); return; }
     setCreating(true);
     try {
       await privateGroupsApi.createGroup({ name: groupName.trim(), description: groupDesc.trim() || undefined });
-      setGroupName(''); setGroupDesc(''); setCreateModal(false);
+      setGroupName(''); setGroupDesc(''); setCreateMode(false);
       load();
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.message ?? 'Could not create group');
     } finally { setCreating(false); }
   }
 
-  const renderGroup = ({ item }: { item: PrivateGroup }) => (
-    <Card
-      style={{ padding: 0 }}
-      onPress={() => navigation.navigate('GroupDetail', { groupId: item.id, groupName: item.name })}
-    >
-      <View style={styles.groupRow}>
-        <View style={[styles.groupIcon, { backgroundColor: theme.featureBg }]}>
-          <Ionicons name="people" size={22} color={theme.secondary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={[typography.h3, { color: theme.textPrimary, flex: 1 }]} numberOfLines={1}>
-              {item.name}
-            </Text>
-            {item.isAdmin && <Chip label="Admin" color="accent" variant="soft" size="sm" />}
-          </View>
-          {item.description ? (
-            <Text style={[typography.small, { color: theme.textMuted }]} numberOfLines={1}>
-              {item.description}
-            </Text>
-          ) : null}
-          <View style={styles.groupMeta}>
-            <View style={styles.metaItem}>
-              <Ionicons name="people-outline" size={11} color={theme.textMuted} />
-              <Text style={[typography.caption, { color: theme.textMuted }]}>
-                {item.memberCount}
-              </Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Ionicons name="document-text-outline" size={11} color={theme.textMuted} />
-              <Text style={[typography.caption, { color: theme.textMuted }]}>
-                {item.postCount}
-              </Text>
-            </View>
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-      </View>
-    </Card>
-  );
-
   return (
-    <View style={{ flex: 1 }}>
-      {loading ? <LoadingView /> : (
-        <FlatList
-          data={groups}
-          keyExtractor={(g) => g.id}
-          renderItem={renderGroup}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => { setRefreshing(true); load(); }}
-              tintColor={theme.accent}
-            />
-          }
-          contentContainerStyle={{ padding: spacing.base, paddingBottom: 100 }}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-          ListEmptyComponent={
-            <EmptyState
-              icon="people-outline"
-              title="No groups yet"
-              message="Create a private group to share with teammates or your club."
-            />
-          }
-        />
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title={createMode ? 'New Group' : 'My Groups'}
+      tall
+    >
+      {createMode ? (
+        <>
+          <Input
+            label="Group name *"
+            leftIcon="people-outline"
+            placeholder="e.g. Brentwood TT Club"
+            value={groupName}
+            onChangeText={setGroupName}
+          />
+          <Input
+            label="Description (optional)"
+            placeholder="What is this group about?"
+            value={groupDesc}
+            onChangeText={setGroupDesc}
+            multiline
+            numberOfLines={3}
+          />
+          <Button
+            title="Create Group"
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={creating}
+            leftIcon="add-circle-outline"
+            onPress={createGroup}
+            style={{ marginTop: spacing.sm }}
+          />
+          <Button
+            title="Cancel"
+            variant="ghost"
+            size="md"
+            fullWidth
+            uppercase={false}
+            onPress={() => setCreateMode(false)}
+            style={{ marginTop: spacing.xs }}
+          />
+        </>
+      ) : (
+        <>
+          <Button
+            title="New Group"
+            variant="primary"
+            size="md"
+            fullWidth
+            leftIcon="add-outline"
+            onPress={() => setCreateMode(true)}
+            style={{ marginBottom: spacing.base }}
+          />
+
+          {loading ? (
+            <Text style={[typography.small, { color: theme.textMuted, textAlign: 'center', paddingVertical: spacing.lg }]}>
+              Loading…
+            </Text>
+          ) : groups.length === 0 ? (
+            <EmptyState icon="people-outline" title="No groups yet" message="Create one to start sharing privately." />
+          ) : (
+            <View style={{ gap: spacing.sm }}>
+              {groups.map((g) => (
+                <Card
+                  key={g.id}
+                  padding={0}
+                  onPress={() => {
+                    onClose();
+                    navigation.navigate('GroupDetail', { groupId: g.id, groupName: g.name });
+                  }}
+                >
+                  <View style={styles.groupRow}>
+                    <View style={[styles.groupIcon, { backgroundColor: theme.featureBg, borderColor: theme.border }]}>
+                      <Ionicons name="people" size={20} color={theme.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[typography.bodyStrong, { color: theme.textPrimary, flex: 1 }]} numberOfLines={1}>
+                          {g.name}
+                        </Text>
+                        {g.isAdmin && <Chip label="Admin" color="accent" variant="soft" size="sm" />}
+                      </View>
+                      <View style={styles.groupMeta}>
+                        <View style={styles.metaItem}>
+                          <Ionicons name="people-outline" size={11} color={theme.textMuted} />
+                          <Text style={[typography.caption, { color: theme.textMuted }]}>
+                            {g.memberCount}
+                          </Text>
+                        </View>
+                        <View style={styles.metaItem}>
+                          <Ionicons name="document-text-outline" size={11} color={theme.textMuted} />
+                          <Text style={[typography.caption, { color: theme.textMuted }]}>
+                            {g.postCount}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+                  </View>
+                </Card>
+              ))}
+            </View>
+          )}
+        </>
       )}
-
-      <Pressable
-        onPress={() => setCreateModal(true)}
-        style={({ pressed }) => [
-          styles.fab,
-          { backgroundColor: theme.accent, shadowColor: theme.accent },
-          pressed && { transform: [{ scale: 0.96 }] },
-        ]}
-      >
-        <Ionicons name="add" size={22} color={theme.primary} />
-        <Text style={[typography.smallStrong, { color: theme.primary, fontWeight: '800' }]}>New Group</Text>
-      </Pressable>
-
-      <BottomSheet visible={createModal} onClose={() => setCreateModal(false)} title="Create Group">
-        <Input
-          label="Group name *"
-          leftIcon="people-outline"
-          placeholder="e.g. Brentwood TT Club"
-          value={groupName}
-          onChangeText={setGroupName}
-        />
-        <Input
-          label="Description (optional)"
-          placeholder="What is this group about?"
-          value={groupDesc}
-          onChangeText={setGroupDesc}
-          multiline
-          numberOfLines={3}
-        />
-        <Button
-          title="Create Group"
-          variant="primary"
-          size="lg"
-          fullWidth
-          loading={creating}
-          leftIcon="add-circle-outline"
-          onPress={createGroup}
-          style={{ marginTop: spacing.sm }}
-        />
-      </BottomSheet>
-    </View>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
 
+  iconBtn: {
+    width: 36, height: 36, borderRadius: radii.sm,
+    borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  privateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
+  },
+
+  privateGroupTag: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.xs,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+
   groupRow: {
     flexDirection: 'row', alignItems: 'center',
     gap: spacing.md, padding: spacing.base,
   },
   groupIcon: {
-    width: 48, height: 48, borderRadius: radii.md,
+    width: 44, height: 44, borderRadius: radii.md,
+    borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   groupMeta: { flexDirection: 'row', gap: spacing.md, marginTop: 4 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-
-  fab: {
-    position: 'absolute', bottom: 20, right: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 18, paddingVertical: 12,
-    borderRadius: radii.pill,
-    shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8,
-  },
-  chatBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: radii.pill, borderWidth: 1,
-  },
 });

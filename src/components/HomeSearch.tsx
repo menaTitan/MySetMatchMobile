@@ -20,7 +20,7 @@ interface Props {
   onPlayer: (id: string) => void;
   onTournament: (id: string) => void;
   onGroup: (id: string, name: string) => void;
-  onListing: () => void;
+  onListing: (id: string) => void;
 }
 
 /**
@@ -134,7 +134,7 @@ export default function HomeSearch({
                       if (hit.kind === 'player') onPlayer(hit.data.id);
                       else if (hit.kind === 'tournament') onTournament(hit.data.id);
                       else if (hit.kind === 'group') onGroup(hit.data.id, hit.data.name);
-                      else onListing();
+                      else onListing(hit.data.id);
                     }}
                   />
                 </View>

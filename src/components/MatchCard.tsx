@@ -4,6 +4,7 @@ import type { MatchSummary } from '../types';
 import type { SportTheme } from '../theme';
 import { DEFAULT_THEME, radii, spacing, typography } from '../theme';
 import Avatar from './ui/Avatar';
+import { navigate } from '../navigation/navigationRef';
 
 interface Props {
   match: MatchSummary;
@@ -26,21 +27,26 @@ export default function MatchCard({ match, theme = DEFAULT_THEME, onPress, onOpp
         { borderLeftColor: stateColor, backgroundColor: pressed ? theme.pageBgTint : 'transparent' },
       ]}
     >
-      <Pressable
-        onPress={onOpponentPress ? () => onOpponentPress(match.opponentId) : undefined}
-        disabled={!onOpponentPress}
-        style={styles.leadCol}
-      >
-        <Avatar name={match.opponentName} photoUrl={match.opponentPhotoUrl} size={compact ? 36 : 42} />
+      <View style={styles.leadCol}>
+        <Avatar
+          name={match.opponentName}
+          photoUrl={match.opponentPhotoUrl}
+          size={compact ? 36 : 42}
+          playerId={match.opponentId}
+          onPress={onOpponentPress ? () => onOpponentPress(match.opponentId) : undefined}
+        />
         <View style={[styles.stateBadge, { backgroundColor: stateColor }]}>
           <Text style={styles.stateText}>{win ? 'W' : 'L'}</Text>
         </View>
-      </Pressable>
+      </View>
       <View style={styles.info}>
         <Text
-          style={[typography.bodyStrong, { color: onOpponentPress ? theme.secondary : theme.textPrimary, fontSize: 14.5 }]}
+          style={[typography.bodyStrong, { color: theme.accent, fontSize: 14.5 }]}
           numberOfLines={1}
-          onPress={onOpponentPress ? () => onOpponentPress(match.opponentId) : undefined}
+          onPress={onOpponentPress
+            ? () => onOpponentPress(match.opponentId)
+            : () => navigate('PlayerProfile', { playerId: match.opponentId })
+          }
         >
           {match.opponentName}
         </Text>

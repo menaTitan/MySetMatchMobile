@@ -222,6 +222,7 @@ function Podium({ entries }: { entries: LeaderboardEntry[] }) {
                 photoUrl={entry.profilePhotoUrl}
                 size={actualPos === 1 ? 56 : 46}
                 borderColor={MEDAL_COLORS[podIdx]}
+                playerId={entry.playerId}
               />
               <Text style={[styles.podiumName, { color: '#fff' }]} numberOfLines={1}>
                 {entry.name}
@@ -248,7 +249,7 @@ function RankRow({ entry, onPress }: { entry: LeaderboardEntry; onPress?: () => 
       <View style={[styles.rankBadge, { backgroundColor: theme.featureBg }]}>
         <Text style={[typography.smallStrong, { color: theme.secondary }]}>#{entry.rank}</Text>
       </View>
-      <Avatar name={entry.name} photoUrl={entry.profilePhotoUrl} size={40} />
+      <Avatar name={entry.name} photoUrl={entry.profilePhotoUrl} size={40} playerId={entry.playerId} />
       <View style={{ flex: 1 }}>
         <Text style={[typography.bodyStrong, { color: theme.textPrimary }]} numberOfLines={1}>
           {entry.name}

@@ -71,17 +71,38 @@ export default function SearchScreen({ navigation }: any) {
 
   const hasResults = rows.some((r) => r.kind !== 'header');
 
+  // Modal sits on the root stack — close it before pushing to the destination
+  // so the user lands on the result, not behind the search overlay.
+  function dismissThen(go: () => void) {
+    navigation.goBack();
+    setTimeout(go, 0);
+  }
   function openPlayer(playerId: string) {
-    navigation.navigate('PlayerProfile', { playerId } as never);
+    // PlayerProfile is a sibling on the root stack — replace ourselves with it.
+    navigation.replace('PlayerProfile', { playerId });
   }
   function openTournament(id: string) {
-    navigation.navigate('Main', { screen: 'Play', params: { screen: 'Tournaments', params: { screen: 'TournamentDetail', params: { id } } } } as never);
+    dismissThen(() =>
+      navigation.getParent()?.navigate('Main', {
+        screen: 'Play', params: { screen: 'TournamentDetail', params: { id } },
+      }),
+    );
   }
   function openGroup(id: string, name: string) {
-    navigation.navigate('Main', { screen: 'Community', params: { screen: 'GroupDetail', params: { groupId: id, groupName: name } } } as never);
+    dismissThen(() =>
+      navigation.getParent()?.navigate('Main', {
+        screen: 'Community',
+        params: { screen: 'GroupDetail', params: { groupId: id, groupName: name } },
+      }),
+    );
   }
-  function openListing() {
-    navigation.navigate('Main', { screen: 'Market' } as never);
+  function openListing(id: string) {
+    dismissThen(() =>
+      navigation.getParent()?.navigate('Main', {
+        screen: 'Market',
+        params: { screen: 'ListingDetail', params: { id } },
+      }),
+    );
   }
 
   return (
@@ -138,7 +159,7 @@ export default function SearchScreen({ navigation }: any) {
               return <TournamentRow t={item.item} onPress={() => openTournament(item.item.id)} />;
             if (item.kind === 'group')
               return <GroupRow g={item.item} onPress={() => openGroup(item.item.id, item.item.name)} />;
-            return <ListingRow l={item.item} onPress={openListing} />;
+            return <ListingRow l={item.item} onPress={() => openListing(item.item.id)} />;
           }}
           contentContainerStyle={{ padding: spacing.base, gap: spacing.xs + 2 }}
           keyboardShouldPersistTaps="handled"

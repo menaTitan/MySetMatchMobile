@@ -50,9 +50,13 @@ export default function PostCard({
   return (
     <View style={[styles.card, { backgroundColor: theme.pageBg, borderBottomColor: theme.border }]}>
       <View style={styles.header}>
-        <Pressable onPress={onAuthorPress} disabled={!onAuthorPress}>
-          <Avatar name={post.authorName} photoUrl={post.profilePhotoUrl} size={40} />
-        </Pressable>
+        <Avatar
+          name={post.authorName}
+          photoUrl={post.profilePhotoUrl}
+          size={40}
+          playerId={post.authorId}
+          onPress={onAuthorPress}
+        />
         <View style={{ flex: 1 }}>
           <Text
             style={[typography.bodyStrong, { color: theme.textPrimary, fontSize: 14 }]}

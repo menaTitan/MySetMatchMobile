@@ -1,6 +1,16 @@
 import api from './client';
 import type { Dashboard, MatchSummary, Player, SportRating } from '../types';
 
+export interface EquipmentItem {
+  /** Human label — e.g. "Blade", "Forehand Rubber", "Racket". */
+  label: string;
+  brand?: string;
+  model?: string;
+  /** Free-text fallback when brand/model aren't separated. */
+  description?: string;
+  sportName?: string;
+}
+
 export interface PublicPlayerProfile {
   player: Player;
   displayRating: number;
@@ -13,6 +23,8 @@ export interface PublicPlayerProfile {
   winRate: number;
   sportRatings: SportRating[];
   recentMatches: MatchSummary[];
+  /** Optional gear list — shape may be an array of items or a flat object dict. */
+  equipment?: EquipmentItem[] | Record<string, unknown>;
 }
 
 export interface RatingHistoryPoint { date: string; rating: number; delta: number; }

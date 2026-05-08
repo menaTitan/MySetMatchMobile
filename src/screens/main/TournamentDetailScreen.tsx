@@ -1,15 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
-import { chatApi, paymentApi, tournamentsApi } from '../../api';
+import { chatApi, matchesApi, paymentApi, tournamentsApi } from '../../api';
 import { API_BASE_URL } from '../../config/env';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
 import { getHub } from '../../realtime/signalR';
-import type { TournamentDetail } from '../../types';
-import { radii, spacing, typography } from '../../theme';
-import { Avatar, Button, Card, Chip, EmptyState, LoadingView, SectionHeader, useToast } from '../../components/ui';
+import type { BracketRound, TournamentDetail } from '../../types';
+import { spacing, typography } from '../../theme';
+import {
+  Button, Card, Chip, EmptyState, LoadingView, SectionHeader,
+  SegmentedTabs, type SegmentedTab, useToast,
+} from '../../components/ui';
+import BracketPane from '../../components/tournament/BracketPane';
+import PlayersPane from '../../components/tournament/PlayersPane';
+import MatchesPane from '../../components/tournament/MatchesPane';
+
+type TabKey = 'bracket' | 'players' | 'mine' | 'matches';
+
+const TABS: SegmentedTab<TabKey>[] = [
+  { key: 'bracket',  label: 'Bracket',    icon: 'git-branch-outline' },
+  { key: 'players',  label: 'Players',    icon: 'people-outline' },
+  { key: 'mine',     label: 'My Matches', icon: 'person-outline' },
+  { key: 'matches',  label: 'Matches',    icon: 'list-outline' },
+];
 
 export default function TournamentDetailScreen({ route, navigation }: any) {
   const { id } = route.params;
@@ -17,13 +33,19 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
   const { theme } = useSport();
   const toast = useToast();
   const [data, setData] = useState<TournamentDetail | null>(null);
+  const [rounds, setRounds] = useState<BracketRound[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>('bracket');
 
-  useEffect(() => { load(); }, [id]);
+  // Reload whenever the screen regains focus (e.g. returning from ScoreEntry
+  // after submitting a score). SignalR also pushes live updates while we're
+  // foregrounded — this is the belt-and-braces for when it isn't connected.
+  useFocusEffect(useCallback(() => { load(); }, [id]));
 
   // Tournament-level realtime: any score update inside this tournament
-  // emits TournamentMatchUpdate; refresh detail so registered/match counts stay current.
+  // emits TournamentMatchUpdate; refresh detail + brackets so counts and the
+  // active tab pane stay current.
   useEffect(() => {
     let off: (() => void) | undefined;
     (async () => {
@@ -44,8 +66,12 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
   async function load() {
     setLoading(true);
     try {
-      const r = await tournamentsApi.detail(id);
-      setData(r.data);
+      const [detail, brackets] = await Promise.all([
+        tournamentsApi.detail(id),
+        matchesApi.brackets(id).catch(() => ({ data: [] as BracketRound[] })),
+      ]);
+      setData(detail.data);
+      setRounds(brackets.data);
     } catch {}
     finally { setLoading(false); }
   }
@@ -54,11 +80,9 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
     if (!player) { Alert.alert('Sign In Required', 'Please sign in to register.'); return; }
     setActionLoading(true);
     try {
-      // Paid tournament → go via Stripe Checkout
       if (data && data.entryFee != null && data.entryFee > 0) {
         const { data: resp } = await paymentApi.createCheckout({ tournamentId: id });
         await WebBrowser.openBrowserAsync(resp.checkoutUrl);
-        // When the user returns, re-load so registration state reflects the webhook.
         await load();
         toast('Check your email for a receipt once payment completes.', 'info', 5000);
         return;
@@ -67,7 +91,6 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
       toast('Registered!', 'success');
       await load();
     } catch (err: any) {
-      // interceptor shows generic error toast; only alert for explicit messages
       const msg = err?.response?.data?.message;
       if (msg) Alert.alert('Error', msg);
     } finally { setActionLoading(false); }
@@ -87,8 +110,6 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
         onPress: async () => {
           setActionLoading(true);
           try {
-            // Different semantics on the server: withdraw forfeits in-progress matches;
-            // unregister simply removes the registration row before play begins.
             if (inProgress) await tournamentsApi.withdraw(id);
             else await tournamentsApi.unregister(id);
             await load();
@@ -109,182 +130,185 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
     : data.status === 'InProgress' ? 'warning'
     : 'primary';
 
+  // Tab counts shown in the segmented control.
+  const tabsWithCounts: SegmentedTab<TabKey>[] = TABS.map((t) => {
+    if (t.key === 'players') return { ...t, count: data.registrations.length };
+    if (t.key === 'matches') return { ...t, count: rounds?.reduce((acc, r) => acc + r.matches.length, 0) ?? 0 };
+    if (t.key === 'mine' && player?.id) {
+      const mine = (rounds ?? []).reduce((acc, r) =>
+        acc + r.matches.filter(m => m.player1?.id === player.id || m.player2?.id === player.id).length, 0);
+      return { ...t, count: mine };
+    }
+    return t;
+  });
+
+  const openPlayer = (playerId: string) => {
+    const root = navigation.getParent()?.getParent() ?? navigation.getParent() ?? navigation;
+    root.navigate('PlayerProfile', { playerId });
+  };
+
+  const openScoreEntry = (matchId: string) => {
+    // ScoreEntry lives in the Play stack; TournamentDetail is already part of it.
+    navigation.navigate('ScoreEntry', { matchId });
+  };
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.pageBg }]}
-      contentContainerStyle={{ padding: spacing.base, paddingBottom: spacing.xxl }}
+      contentContainerStyle={{ paddingBottom: spacing.xxl }}
+      stickyHeaderIndices={[1]}
     >
-      {/* Title & chips */}
-      <Text style={[typography.h1, { color: theme.textPrimary, marginBottom: spacing.sm }]}>
-        {data.name}
-      </Text>
-      <View style={styles.chipRow}>
-        <Chip label={data.status} color={statusColor} variant="soft" size="sm" />
-        {data.sportName && <Chip label={data.sportName} color="primary" variant="soft" size="sm" />}
-        {data.isDoubles && <Chip label="Doubles" color="accent" variant="soft" size="sm" leadingEmoji="👥" />}
-      </View>
+      {/* ── Overview header ───────────────────────────────────────── */}
+      <View style={{ padding: spacing.base }}>
+        <Text style={[typography.h1, { color: theme.textPrimary, marginBottom: spacing.sm }]}>
+          {data.name}
+        </Text>
+        <View style={styles.chipRow}>
+          <Chip label={data.status} color={statusColor} variant="soft" size="sm" />
+          {data.sportName && <Chip label={data.sportName} color="primary" variant="soft" size="sm" />}
+          {data.isDoubles && <Chip label="Doubles" color="accent" variant="soft" size="sm" leadingEmoji="👥" />}
+        </View>
 
-      {/* Info card */}
-      <Card style={{ marginBottom: spacing.base }}>
-        <InfoRow icon="calendar-outline" label="Start" value={new Date(data.startDate).toLocaleDateString()} />
-        {data.endDate && <InfoRow icon="calendar-outline" label="End" value={new Date(data.endDate).toLocaleDateString()} />}
-        {data.city && <InfoRow icon="location-outline" label="Location" value={`${data.city}, ${data.country}`} />}
-        {data.venueAddress && <InfoRow icon="business-outline" label="Venue" value={data.venueAddress} />}
-        <InfoRow icon="game-controller-outline" label="Format" value={data.type} />
-        <InfoRow
-          icon="people-outline"
-          label="Players"
-          value={`${data.registeredCount}${data.maxPlayers ? `/${data.maxPlayers}` : ''}`}
-        />
-        {data.entryFee != null && (
-          <InfoRow
-            icon="cash-outline"
-            label="Entry Fee"
-            value={data.entryFee === 0 ? 'Free' : `$${data.entryFee}`}
-            last
-          />
-        )}
-      </Card>
-
-      {/* Action buttons */}
-      <View style={{ gap: spacing.sm, marginBottom: spacing.base }}>
-        {data.isRegistered ? (
-          <Button
-            title="Withdraw"
-            variant="danger"
-            size="lg"
-            leftIcon="exit-outline"
-            onPress={handleUnregister}
-            loading={actionLoading}
-            fullWidth
-          />
-        ) : canRegister ? (
-          <Button
-            title={isFull ? 'Tournament Full' : (data.entryFee && data.entryFee > 0 ? `Register · $${data.entryFee}` : 'Register Now')}
-            variant="primary"
-            size="lg"
-            leftIcon={isFull ? 'close-circle-outline' : (data.entryFee && data.entryFee > 0 ? 'card-outline' : 'checkmark-circle-outline')}
-            onPress={handleRegister}
-            loading={actionLoading}
-            disabled={isFull}
-            fullWidth
-          />
-        ) : null}
-
-        {(data.status === 'InProgress' || data.status === 'Completed') && (
-          <Button
-            title="View Brackets"
-            variant="accent"
-            size="lg"
-            rightIcon="arrow-forward"
-            onPress={() => navigation.navigate('Brackets', { tournamentId: id, name: data.name })}
-            fullWidth
-          />
-        )}
-
-        {data.status === 'InProgress' && (
-          <Button
-            title="View Live Scores"
-            variant="ghost"
-            size="lg"
-            leftIcon="radio-outline"
-            uppercase={false}
-            onPress={() => navigation.navigate('LiveScore', { tournamentId: id, tournamentName: data.name })}
-            fullWidth
-          />
-        )}
-
-        {data.status === 'Completed' && (
-          <Button
-            title="Download Results PDF"
-            variant="ghost"
-            size="lg"
-            leftIcon="document-text-outline"
-            uppercase={false}
-            onPress={async () => {
-              const path = tournamentsApi.resultsPdfUrl(id);
-              const url = path.startsWith('http')
-                ? path
-                : `${API_BASE_URL}/api${path}`;
-              await WebBrowser.openBrowserAsync(url);
-            }}
-            fullWidth
-          />
-        )}
-
-        {data.isOrganizer ? (
-          <Button
-            title="Manage Registrations"
-            variant="secondary"
-            size="lg"
-            leftIcon="people-outline"
-            uppercase={false}
-            onPress={() => navigation.navigate('ManageTournament', { id, name: data.name })}
-            fullWidth
-          />
-        ) : null}
-
-        {(data.isRegistered || data.isOrganizer) ? (
-          <Button
-            title="Tournament Chat"
-            variant="ghost"
-            size="lg"
-            leftIcon="chatbubbles-outline"
-            uppercase={false}
-            onPress={async () => {
-              try {
-                const r = await chatApi.createTournamentChat(id);
-                const root = navigation.getParent()?.getParent() ?? navigation.getParent() ?? navigation;
-                root.navigate('Community', { screen: 'ChatRoom', params: { roomId: r.data.id, title: data.name } });
-              } catch (err: any) {
-                Alert.alert('Error', err?.response?.data?.message ?? 'Could not open tournament chat.');
-              }
-            }}
-            fullWidth
-          />
-        ) : null}
-      </View>
-
-      {/* Description */}
-      {data.description ? (
         <Card style={{ marginBottom: spacing.base }}>
-          <SectionHeader title="About" icon="information-circle-outline" />
-          <Text style={[typography.body, { color: theme.textSecondary }]}>{data.description}</Text>
-        </Card>
-      ) : null}
-
-      {/* Players */}
-      {data.registrations.length > 0 && (
-        <Card>
-          <SectionHeader
-            title="Registered Players"
-            eyebrow={`${data.registrations.length} players`}
+          <InfoRow icon="calendar-outline" label="Start" value={new Date(data.startDate).toLocaleDateString()} />
+          {data.endDate && <InfoRow icon="calendar-outline" label="End" value={new Date(data.endDate).toLocaleDateString()} />}
+          {data.city && <InfoRow icon="location-outline" label="Location" value={`${data.city}, ${data.country}`} />}
+          {data.venueAddress && <InfoRow icon="business-outline" label="Venue" value={data.venueAddress} />}
+          <InfoRow icon="game-controller-outline" label="Format" value={data.type} />
+          <InfoRow
             icon="people-outline"
+            label="Players"
+            value={`${data.registeredCount}${data.maxPlayers ? `/${data.maxPlayers}` : ''}`}
           />
-          {data.registrations.map((p, i) => (
-            <View
-              key={p.id}
-              style={[
-                styles.playerRow,
-                i > 0 && { borderTopWidth: 1, borderTopColor: theme.divider },
-              ]}
-            >
-              <Avatar name={p.name} photoUrl={p.profilePhotoUrl} size={36} />
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.bodyStrong, { color: theme.textPrimary }]}>{p.name}</Text>
-                {p.city && (
-                  <Text style={[typography.caption, { color: theme.textMuted }]}>
-                    {p.city}{p.country ? `, ${p.country}` : ''}
-                  </Text>
-                )}
-              </View>
-              <View style={[styles.ratingPill, { backgroundColor: theme.featureBg }]}>
-                <Text style={[typography.smallStrong, { color: theme.primary }]}>{p.globalRating}</Text>
-              </View>
-            </View>
-          ))}
+          {data.entryFee != null && (
+            <InfoRow
+              icon="cash-outline"
+              label="Entry Fee"
+              value={data.entryFee === 0 ? 'Free' : `$${data.entryFee}`}
+              last
+            />
+          )}
         </Card>
-      )}
+
+        <View style={{ gap: spacing.sm, marginBottom: spacing.base }}>
+          {data.isRegistered ? (
+            <Button
+              title="Withdraw"
+              variant="danger"
+              size="lg"
+              leftIcon="exit-outline"
+              onPress={handleUnregister}
+              loading={actionLoading}
+              fullWidth
+            />
+          ) : canRegister ? (
+            <Button
+              title={isFull ? 'Tournament Full' : (data.entryFee && data.entryFee > 0 ? `Register · $${data.entryFee}` : 'Register Now')}
+              variant="primary"
+              size="lg"
+              leftIcon={isFull ? 'close-circle-outline' : (data.entryFee && data.entryFee > 0 ? 'card-outline' : 'checkmark-circle-outline')}
+              onPress={handleRegister}
+              loading={actionLoading}
+              disabled={isFull}
+              fullWidth
+            />
+          ) : null}
+
+          {data.status === 'InProgress' && (
+            <Button
+              title="View Live Scores"
+              variant="ghost"
+              size="lg"
+              leftIcon="radio-outline"
+              uppercase={false}
+              onPress={() => navigation.navigate('LiveScore', { tournamentId: id, tournamentName: data.name })}
+              fullWidth
+            />
+          )}
+
+          {data.status === 'Completed' && (
+            <Button
+              title="Download Results PDF"
+              variant="ghost"
+              size="lg"
+              leftIcon="document-text-outline"
+              uppercase={false}
+              onPress={async () => {
+                const path = tournamentsApi.resultsPdfUrl(id);
+                const url = path.startsWith('http') ? path : `${API_BASE_URL}/api${path}`;
+                await WebBrowser.openBrowserAsync(url);
+              }}
+              fullWidth
+            />
+          )}
+
+          {data.isOrganizer ? (
+            <Button
+              title="Manage Registrations"
+              variant="secondary"
+              size="lg"
+              leftIcon="people-outline"
+              uppercase={false}
+              onPress={() => navigation.navigate('ManageTournament', { id, name: data.name })}
+              fullWidth
+            />
+          ) : null}
+
+          {(data.isRegistered || data.isOrganizer) ? (
+            <Button
+              title="Tournament Chat"
+              variant="ghost"
+              size="lg"
+              leftIcon="chatbubbles-outline"
+              uppercase={false}
+              onPress={async () => {
+                try {
+                  const r = await chatApi.createTournamentChat(id);
+                  const root = navigation.getParent()?.getParent() ?? navigation.getParent() ?? navigation;
+                  root.navigate('Community', { screen: 'ChatRoom', params: { roomId: r.data.id, title: data.name } });
+                } catch (err: any) {
+                  Alert.alert('Error', err?.response?.data?.message ?? 'Could not open tournament chat.');
+                }
+              }}
+              fullWidth
+            />
+          ) : null}
+        </View>
+
+        {data.description ? (
+          <Card>
+            <SectionHeader title="About" icon="information-circle-outline" />
+            <Text style={[typography.body, { color: theme.textSecondary }]}>{data.description}</Text>
+          </Card>
+        ) : null}
+      </View>
+
+      {/* ── Tab strip (sticky) ────────────────────────────────────── */}
+      <SegmentedTabs<TabKey>
+        tabs={tabsWithCounts}
+        value={activeTab}
+        onChange={setActiveTab}
+        variant="underline"
+      />
+
+      {/* ── Active pane ───────────────────────────────────────────── */}
+      <View style={{ paddingTop: spacing.base }}>
+        {activeTab === 'bracket' && <BracketPane rounds={rounds} />}
+        {activeTab === 'players' && (
+          <PlayersPane players={data.registrations} onOpenPlayer={openPlayer} />
+        )}
+        {activeTab === 'mine' && (
+          <MatchesPane
+            rounds={rounds}
+            mineOnly
+            myPlayerId={player?.id}
+            onMatchPress={openScoreEntry}
+          />
+        )}
+        {activeTab === 'matches' && (
+          <MatchesPane rounds={rounds} onMatchPress={openScoreEntry} />
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -295,10 +319,10 @@ function InfoRow({
   const { theme } = useSport();
   return (
     <View style={[styles.infoRow, !last && { borderBottomWidth: 1, borderBottomColor: theme.divider }]}>
-      <View style={[styles.infoIconBox, { backgroundColor: theme.featureBg }]}>
-        <Ionicons name={icon} size={14} color={theme.secondary} />
+      <View style={[styles.infoIconBox, { backgroundColor: theme.featureBg, borderColor: theme.border }]}>
+        <Ionicons name={icon} size={14} color={theme.accent} />
       </View>
-      <Text style={[typography.small, { color: theme.textMuted, flex: 1 }]}>{label}</Text>
+      <Text style={[typography.overline, { color: theme.textMuted, flex: 1, fontSize: 11 }]}>{label}</Text>
       <Text style={[typography.bodyStrong, { color: theme.textPrimary }]} numberOfLines={2}>{value}</Text>
     </View>
   );
@@ -306,21 +330,14 @@ function InfoRow({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.base },
   infoRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     paddingVertical: spacing.sm + 2,
   },
   infoIconBox: {
-    width: 30, height: 30, borderRadius: 8,
+    width: 30, height: 30, borderRadius: 6,
+    borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
-  },
-  playerRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingVertical: spacing.sm + 2,
-  },
-  ratingPill: {
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.pill,
   },
 });

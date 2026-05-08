@@ -5,6 +5,7 @@ import { useSport } from '../../context/SportContext';
 import { useFetchData } from '../../hooks/useFetchData';
 import { radii, spacing, typography } from '../../theme';
 import { Avatar, Card, Chip, EmptyState, LoadingView, PageHeader } from '../../components/ui';
+import { navigate } from '../../navigation/navigationRef';
 
 export default function ParticipantsScreen({ route }: any) {
   const { tournamentId, name } = route.params;
@@ -25,9 +26,9 @@ export default function ParticipantsScreen({ route }: any) {
           contentContainerStyle={{ padding: spacing.base, gap: spacing.xs + 2 }}
           ListEmptyComponent={<EmptyState icon="people-outline" title="No participants yet" />}
           renderItem={({ item: r }) => (
-            <Card padding={0}>
+            <Card padding={0} onPress={() => navigate('PlayerProfile', { playerId: r.playerId })}>
               <View style={styles.row}>
-                <Avatar name={r.playerName} size={40} />
+                <Avatar name={r.playerName} size={40} playerId={r.playerId} />
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.bodyStrong, { color: theme.textPrimary }]}>{r.playerName}</Text>
                   <Text style={[typography.caption, { color: theme.textMuted }]}>

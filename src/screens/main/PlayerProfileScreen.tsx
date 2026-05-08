@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { playerApi, type PublicPlayerProfile, type RatingHistoryPoint } from '../../api';
@@ -6,11 +6,12 @@ import { useSport } from '../../context/SportContext';
 import { useAuth } from '../../context/AuthContext';
 import { useFetchData } from '../../hooks/useFetchData';
 import { getHub } from '../../realtime/signalR';
+import EquipmentList from '../../components/EquipmentList';
 import MatchCard from '../../components/MatchCard';
 import RatingChart from '../../components/RatingChart';
 import SportIcon from '../../components/ui/SportIcon';
 import { radii, spacing, typography } from '../../theme';
-import { Avatar, Button, Card, EmptyState, HeroHeader, LoadingView, SectionHeader, StatTile, useToast } from '../../components/ui';
+import { Avatar, Button, Card, EmptyState, HeroHeader, LoadingView, PhotoLightbox, SectionHeader, StatTile, useToast } from '../../components/ui';
 
 export default function PlayerProfileScreen({ route, navigation }: any) {
   const { playerId } = route.params;
@@ -28,6 +29,7 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
   );
 
   const toast = useToast();
+  const [photoOpen, setPhotoOpen] = useState(false);
   // Live rating change banner — driven by PlayerRatingUpdated SignalR events.
   useEffect(() => {
     let off: (() => void) | undefined;
@@ -53,7 +55,13 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
 
   if (loading || !data) return <LoadingView />;
 
-  const { player, displayRating, globalRank, countryRank, wins, losses, winRate, totalMatches, sportRatings, recentMatches } = data;
+  const hasEquipment = (eq: typeof data.equipment): boolean => {
+    if (!eq) return false;
+    if (Array.isArray(eq)) return eq.length > 0;
+    return Object.keys(eq).length > 0;
+  };
+
+  const { player, displayRating, globalRank, countryRank, wins, losses, winRate, totalMatches, sportRatings, recentMatches, equipment } = data;
   const isMe = me?.id === player.id;
 
   return (
@@ -66,7 +74,12 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
         <HeroHeader variant="standard" align="center">
           <View style={styles.heroBody}>
             <View style={[styles.avatarRing, { borderColor: theme.accent, shadowColor: theme.accent }]}>
-              <Avatar name={player.name} photoUrl={player.profilePhotoUrl} size={96} />
+              <Avatar
+                name={player.name}
+                photoUrl={player.profilePhotoUrl}
+                size={96}
+                onPress={() => setPhotoOpen(true)}
+              />
             </View>
 
             <Text style={styles.name}>{player.name}</Text>
@@ -94,7 +107,16 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
         </HeroHeader>
 
         <View style={{ padding: spacing.base, gap: spacing.base }}>
-          {!isMe && me ? (
+          {isMe ? (
+            <Button
+              title="Edit Profile"
+              variant="primary"
+              size="md"
+              leftIcon="create-outline"
+              onPress={() => navigation.navigate('EditProfile')}
+              fullWidth
+            />
+          ) : me ? (
             <Button
               title="View Head-to-Head"
               variant="accent"
@@ -143,6 +165,14 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
             </Card>
           )}
 
+          {/* Equipment — only renders when the API returns gear. */}
+          {hasEquipment(equipment) ? (
+            <Card>
+              <SectionHeader title="Equipment" icon="construct-outline" />
+              <EquipmentList equipment={equipment} />
+            </Card>
+          ) : null}
+
           {/* Recent matches */}
           <Card>
             <SectionHeader title="Recent matches" icon="time-outline" />
@@ -154,6 +184,13 @@ export default function PlayerProfileScreen({ route, navigation }: any) {
           </Card>
         </View>
       </ScrollView>
+
+      <PhotoLightbox
+        visible={photoOpen}
+        photoUrl={player.profilePhotoUrl}
+        caption={player.name}
+        onClose={() => setPhotoOpen(false)}
+      />
     </View>
   );
 }

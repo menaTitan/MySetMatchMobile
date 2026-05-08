@@ -10,7 +10,7 @@ import SportPickerBar from '../../components/SportPickerBar';
 import HomeSearch from '../../components/HomeSearch';
 import MatchCard from '../../components/MatchCard';
 import { radii, shadows, spacing, typography } from '../../theme';
-import { Card, Chip, EmptyState, FeatureTileGrid, HeroHeader, LoadingView, SectionHeader, StatTile } from '../../components/ui';
+import { Avatar, Card, Chip, EmptyState, FeatureTileGrid, HeroHeader, LoadingView, PhotoLightbox, SectionHeader, StatTile } from '../../components/ui';
 
 export default function DashboardScreen({ navigation }: any) {
   const { player } = useAuth();
@@ -18,6 +18,7 @@ export default function DashboardScreen({ navigation }: any) {
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -44,8 +45,8 @@ export default function DashboardScreen({ navigation }: any) {
   const openGroup = (id: string, name: string) => {
     navigation.navigate('Community', { screen: 'GroupDetail', params: { groupId: id, groupName: name } });
   };
-  const openMarket = () => {
-    navigation.navigate('Market');
+  const openListing = (id: string) => {
+    navigation.navigate('Market', { screen: 'ListingDetail', params: { id } });
   };
 
   return (
@@ -64,9 +65,18 @@ export default function DashboardScreen({ navigation }: any) {
         showsVerticalScrollIndicator={false}
       >
         <HeroHeader variant="standard">
-          <View>
-            <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.name}>{firstName} 👋</Text>
+          <View style={styles.greetRow}>
+            <Avatar
+              name={player?.name}
+              photoUrl={player?.profilePhotoUrl}
+              size={56}
+              borderColor={theme.accent}
+              onPress={() => setPhotoOpen(true)}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.greeting}>Welcome back,</Text>
+              <Text style={styles.name}>{firstName}</Text>
+            </View>
           </View>
 
           <View style={styles.ratingHero}>
@@ -97,7 +107,7 @@ export default function DashboardScreen({ navigation }: any) {
               onPlayer={openPlayer}
               onTournament={openTournament}
               onGroup={openGroup}
-              onListing={openMarket}
+              onListing={openListing}
             />
           </View>
         </HeroHeader>
@@ -273,11 +283,23 @@ export default function DashboardScreen({ navigation }: any) {
           )}
         </Card>
       </ScrollView>
+
+      <PhotoLightbox
+        visible={photoOpen}
+        photoUrl={player?.profilePhotoUrl}
+        caption={player?.name}
+        onClose={() => setPhotoOpen(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  greetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   greeting: {
     color: 'rgba(250,250,250,0.55)',
     fontSize: 11, letterSpacing: 1.6,

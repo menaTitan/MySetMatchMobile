@@ -267,7 +267,14 @@ function MessageBubble({
     <View style={[styles.bubbleRow, { justifyContent: mine ? 'flex-end' : 'flex-start' }]}>
       {!mine ? (
         <View style={{ width: 28 }}>
-          {showAuthor ? <Avatar name={msg.senderName} photoUrl={msg.senderProfilePhotoUrl} size={28} /> : null}
+          {showAuthor ? (
+            <Avatar
+              name={msg.senderName}
+              photoUrl={msg.senderProfilePhotoUrl}
+              size={28}
+              playerId={msg.senderId}
+            />
+          ) : null}
         </View>
       ) : null}
       <View style={{ alignItems: mine ? 'flex-end' : 'flex-start', maxWidth: '78%' }}>

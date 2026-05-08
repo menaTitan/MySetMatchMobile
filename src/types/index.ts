@@ -143,6 +143,7 @@ export interface FeedResponse {
 export interface MatchPlayer {
   id: string;
   name: string;
+  profilePhotoUrl?: string;
 }
 
 export interface MatchSet {
@@ -181,8 +182,8 @@ export interface BracketSet {
 
 export interface BracketMatch {
   id: string;
-  player1: { id: string; name: string } | null;
-  player2: { id: string; name: string } | null;
+  player1: { id: string; name: string; profilePhotoUrl?: string } | null;
+  player2: { id: string; name: string; profilePhotoUrl?: string } | null;
   player1SetsWon: number;
   player2SetsWon: number;
   winnerId?: string;

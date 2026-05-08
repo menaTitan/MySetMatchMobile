@@ -124,7 +124,7 @@ export default function ListingDetailScreen({ route, navigation }: any) {
         <Card>
           <Text style={[typography.bodyStrong, { color: theme.textPrimary, marginBottom: 6 }]}>Seller</Text>
           <View style={styles.sellerRow}>
-            <Avatar name={data.sellerName} photoUrl={data.sellerPhotoUrl} size={44} />
+            <Avatar name={data.sellerName} photoUrl={data.sellerPhotoUrl} size={44} playerId={data.sellerId} />
             <View style={{ flex: 1 }}>
               <Text style={[typography.bodyStrong, { color: theme.textPrimary }]}>{data.sellerName}</Text>
               {data.city ? (
