@@ -48,14 +48,14 @@ export default function PostCard({
     ? (post.myReaction as ReactionKind) : undefined;
   const meta = active ? REACTION_META[active] : null;
   return (
-    <View style={[styles.card, { backgroundColor: theme.cardBg }, shadows.md]}>
+    <View style={[styles.card, { backgroundColor: theme.pageBg, borderBottomColor: theme.border }]}>
       <View style={styles.header}>
         <Pressable onPress={onAuthorPress} disabled={!onAuthorPress}>
           <Avatar name={post.authorName} photoUrl={post.profilePhotoUrl} size={40} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text
-            style={[typography.bodyStrong, { color: onAuthorPress ? theme.secondary : theme.textPrimary, fontSize: 14 }]}
+            style={[typography.bodyStrong, { color: theme.textPrimary, fontSize: 14 }]}
             onPress={onAuthorPress}
           >
             {post.authorName}
@@ -63,8 +63,11 @@ export default function PostCard({
           <Text style={[typography.caption, { color: theme.textMuted }]}>{timeAgo(post.createdDate)}</Text>
         </View>
         {post.sportName ? (
-          <View style={[styles.sportTag, { backgroundColor: theme.accentLight }]}>
-            <Text style={[typography.caption, { color: theme.accentDark, fontWeight: '800', fontSize: 10, letterSpacing: 0.5 }]}>
+          <View style={[styles.sportTag, { backgroundColor: theme.featureBg, borderColor: `${theme.accent}40` }]}>
+            <Text style={[
+              typography.overline,
+              { color: theme.accent, fontSize: 10 },
+            ]}>
               {post.sportName.toUpperCase()}
             </Text>
           </View>
@@ -92,6 +95,8 @@ export default function PostCard({
       {post.imageUrl ? (
         <Image source={{ uri: post.imageUrl }} style={styles.image} resizeMode="cover" />
       ) : null}
+
+
 
       <View style={[styles.actions, { borderTopColor: theme.divider }]}>
         <View style={{ position: 'relative' }}>
@@ -131,8 +136,8 @@ export default function PostCard({
       </View>
 
       {post.comments?.slice(0, 2).map((c) => (
-        <View key={c.id} style={[styles.commentPreview, { backgroundColor: theme.pageBg }]}>
-          <Text style={[typography.smallStrong, { color: theme.primary }]}>{c.authorName}</Text>
+        <View key={c.id} style={[styles.commentPreview, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+          <Text style={[typography.smallStrong, { color: theme.accent }]}>{c.authorName}</Text>
           <Text style={[typography.small, { color: theme.textSecondary, flex: 1 }]} numberOfLines={2}>
             {c.content}
           </Text>
@@ -235,19 +240,20 @@ function timeAgo(dateStr: string) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radii.lg,
-    padding: spacing.base,
-    marginBottom: spacing.sm + 4,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.base,
+    borderBottomWidth: 1,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sportTag: {
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: radii.pill,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: radii.xs,
+    borderWidth: 1,
   },
   image: {
-    width: '100%', height: 200,
-    borderRadius: radii.md,
+    height: 240,
     marginTop: spacing.sm,
+    marginHorizontal: -spacing.base, // edge-to-edge with sharp corners per spec
   },
   actions: {
     flexDirection: 'row', gap: spacing.xl,
@@ -257,6 +263,7 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   commentPreview: {
     flexDirection: 'row', gap: 6, flexWrap: 'wrap',
-    padding: 10, borderRadius: radii.sm, marginTop: 6,
+    padding: 10, borderRadius: radii.xs, marginTop: 6,
+    borderWidth: 1,
   },
 });

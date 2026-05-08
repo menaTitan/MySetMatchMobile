@@ -15,8 +15,7 @@ interface Props extends Omit<TextInputProps, 'style'> {
 }
 
 /**
- * Standard text field. Keep the touchable area (the TextInput itself) simple —
- * wrappers don't swallow taps, no pointerEvents hacks, no fontFamily overrides.
+ * Standard text field. Dark surface, cyber-accent focus border.
  */
 const Input = forwardRef<TextInput, Props>(function Input(
   {
@@ -27,21 +26,23 @@ const Input = forwardRef<TextInput, Props>(function Input(
   const { theme } = useSport();
   const [focused, setFocused] = useState(false);
 
-  const borderColor = error ? theme.dangerRed : focused ? theme.secondary : theme.border;
+  const borderColor = error ? theme.dangerRed : focused ? theme.accent : theme.border;
 
   return (
     <View style={[{ marginBottom: spacing.base }, containerStyle]}>
       {label ? (
-        <Text style={[typography.smallStrong, { color: theme.textSecondary, marginBottom: 6 }]}>{label}</Text>
+        <Text style={[
+          typography.overline,
+          { color: theme.textSecondary, marginBottom: 6, fontSize: 10, letterSpacing: 1.4 },
+        ]}>{label}</Text>
       ) : null}
-      <View style={[styles.box, { borderColor, backgroundColor: '#F7FAFC', borderRadius: radii.md }]}>
+      <View style={[styles.box, { borderColor, backgroundColor: theme.cardBg, borderRadius: radii.md }]}>
         {leftIcon ? (
           <Ionicons
             name={leftIcon}
             size={18}
-            color={theme.textMuted}
+            color={focused ? theme.accent : theme.textMuted}
             style={styles.leftIcon}
-            // Icon should never eat taps meant for the input.
             // @ts-ignore - pointerEvents is valid on View-based components
             pointerEvents="none"
           />
@@ -71,7 +72,7 @@ const styles = StyleSheet.create({
   box: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: 1,
     paddingHorizontal: 14,
     minHeight: 50,
   },
@@ -79,8 +80,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     paddingVertical: 14,
-    // No fontFamily here — a missing custom font can silently break rendering
-    // on some Android builds. System font is fine for inputs.
   },
   leftIcon: { marginRight: 8 },
   rightIcon: { paddingLeft: 8 },

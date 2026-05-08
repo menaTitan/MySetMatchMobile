@@ -12,10 +12,11 @@ export interface SportTheme {
   secondaryGlow: string;
 
   // --- Page / surfaces ---
-  pageBg: string;
-  pageBgTint: string;
-  featureBg: string;
-  cardBg: string;
+  pageBg: string;       // Base background — near-true black
+  pageBgTint: string;   // Slightly lifted background for contrast areas
+  surfaceElevated: string; // Surface 2 — for sheets / popovers
+  featureBg: string;    // Subtle accent-tinted dark for icon wells / highlights
+  cardBg: string;       // Surface 1 — cards, inputs, list rows
 
   // --- Gradients (for LinearGradient: 2+ color arrays) ---
   heroGradient: readonly [string, string, string, string];
@@ -49,23 +50,30 @@ export interface SportTheme {
   tabBarActive: string;
 }
 
+// Pro-sports dark base — applied app-wide. Lifted off pure black for legibility.
+const SURFACE_0 = '#101014';   // base page background — still dark, less black-hole
+const SURFACE_1 = '#1C1C22';   // cards, inputs, list rows
+const SURFACE_2 = '#26262E';   // sheets, popovers
+const SURFACE_TINT = '#16161B';// contrast bands
+
 const NEUTRAL = {
-  textPrimary: '#1E293B',      // slate-800
-  textSecondary: '#475569',    // slate-600
-  textMuted: '#7F8C8D',
-  textInverse: '#FFFFFF',
-  border: '#E2E8F0',
-  borderStrong: '#CBD5E1',
-  divider: '#EDF2F7',
-  cardBg: '#FFFFFF',
-  success: '#27AE60',
+  textPrimary: '#FAFAFA',
+  textSecondary: '#C4C4CC',
+  textMuted: '#8A8A94',
+  textInverse: '#101014',
+  border: '#2E2E36',
+  borderStrong: '#45454F',
+  divider: '#22222A',
+  cardBg: SURFACE_1,
+  surfaceElevated: SURFACE_2,
+  success: '#22C55E',
   successGreen: '#22C55E',
   warning: '#F59E0B',
-  danger: '#E74C3C',
+  danger: '#EF4444',
   dangerRed: '#EF4444',
-  info: '#3498DB',
-  textOnPrimary: '#FFFFFF',
-  textOnPrimaryMuted: 'rgba(255,255,255,0.75)',
+  info: '#38BDF8',
+  textOnPrimary: '#FAFAFA',
+  textOnPrimaryMuted: 'rgba(250,250,250,0.7)',
 };
 
 function shade(hex: string, amount: number) {
@@ -82,17 +90,36 @@ function shade(hex: string, amount: number) {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+// Mix `base` toward `target` by ratio (0..1).
+function tint(base: string, target: string, ratio: number) {
+  const a = base.replace('#', '');
+  const b = target.replace('#', '');
+  const ar = parseInt(a.substring(0, 2), 16);
+  const ag = parseInt(a.substring(2, 4), 16);
+  const ab = parseInt(a.substring(4, 6), 16);
+  const br = parseInt(b.substring(0, 2), 16);
+  const bg = parseInt(b.substring(2, 4), 16);
+  const bb = parseInt(b.substring(4, 6), 16);
+  const r = Math.round(ar + (br - ar) * ratio);
+  const g = Math.round(ag + (bg - ag) * ratio);
+  const bl = Math.round(ab + (bb - ab) * ratio);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${bl.toString(16).padStart(2, '0')}`;
+}
+
 function build(opts: {
   primary: string;
   secondary: string;
   accent: string;
-  pageBg: string;
-  pageBgTint: string;
   secondaryGlowRgb: string;
   accentGlowRgb: string;
 }): SportTheme {
-  const primaryDark = shade(opts.primary, -0.2);
+  const primaryDark = shade(opts.primary, -0.35);
   const accentDark = shade(opts.accent, -0.25);
+
+  // Dark hero gradient: near-black with a faint sport-tinted wash in the middle.
+  const heroMid1 = tint(SURFACE_0, opts.primary, 0.35);
+  const heroMid2 = tint(SURFACE_0, opts.secondary, 0.22);
+
   return {
     ...NEUTRAL,
     primary: opts.primary,
@@ -100,17 +127,17 @@ function build(opts: {
     secondary: opts.secondary,
     accent: opts.accent,
     accentDark,
-    accentLight: `rgba(${opts.accentGlowRgb}, 0.15)`,
-    accentGlow: `rgba(${opts.accentGlowRgb}, 0.45)`,
+    accentLight: `rgba(${opts.accentGlowRgb}, 0.14)`,
+    accentGlow: `rgba(${opts.accentGlowRgb}, 0.55)`,
     secondaryGlow: `rgba(${opts.secondaryGlowRgb}, 0.4)`,
-    pageBg: opts.pageBg,
-    pageBgTint: opts.pageBgTint,
-    featureBg: `rgba(${opts.secondaryGlowRgb}, 0.1)`,
-    heroGradient: [shade(opts.primary, -0.35), opts.primary, opts.secondary, shade(opts.primary, -0.15)] as const,
-    heroMobileGradient: [shade(opts.primary, -0.3), opts.primary, opts.secondary] as const,
-    headerGradient: [opts.secondary, opts.primary] as const,
+    pageBg: SURFACE_0,
+    pageBgTint: SURFACE_TINT,
+    featureBg: `rgba(${opts.accentGlowRgb}, 0.10)`,
+    heroGradient: [SURFACE_0, heroMid1, heroMid2, SURFACE_0] as const,
+    heroMobileGradient: [SURFACE_0, heroMid1, SURFACE_0] as const,
+    headerGradient: [SURFACE_0, heroMid1] as const,
     accentGradient: [opts.accent, accentDark] as const,
-    headerBg: opts.primary,
+    headerBg: SURFACE_0,
     tabBarActive: opts.accent,
   };
 }
@@ -119,65 +146,51 @@ export const SPORT_THEMES: Record<string, SportTheme> = {
   'table-tennis': build({
     primary: '#1A365D',
     secondary: '#2B4C8C',
-    accent: '#FF9F1C',
-    pageBg: '#F4F6F7',
-    pageBgTint: '#EBF4FF',
+    accent: '#FF5500', // Cyber Orange — brand-default accent
     secondaryGlowRgb: '43, 76, 140',
-    accentGlowRgb: '255, 159, 28',
+    accentGlowRgb: '255, 85, 0',
   }),
   tennis: build({
     primary: '#1B5E20',
     secondary: '#2E7D32',
-    accent: '#CDDC39',
-    pageBg: '#F1F8E9',
-    pageBgTint: '#E8F5E9',
+    accent: '#A3FF12',
     secondaryGlowRgb: '46, 125, 50',
-    accentGlowRgb: '205, 220, 57',
+    accentGlowRgb: '163, 255, 18',
   }),
   badminton: build({
     primary: '#4A148C',
     secondary: '#6A1B9A',
-    accent: '#D500F9',
-    pageBg: '#F5F0FF',
-    pageBgTint: '#EDE7F6',
+    accent: '#E000FF',
     secondaryGlowRgb: '106, 27, 154',
-    accentGlowRgb: '213, 0, 249',
+    accentGlowRgb: '224, 0, 255',
   }),
   squash: build({
     primary: '#7A1F00',
     secondary: '#C94C12',
-    accent: '#FFB74D',
-    pageBg: '#FFF8F5',
-    pageBgTint: '#FBE9E7',
+    accent: '#FF8A1A',
     secondaryGlowRgb: '201, 76, 18',
-    accentGlowRgb: '255, 183, 77',
+    accentGlowRgb: '255, 138, 26',
   }),
   racquetball: build({
     primary: '#7A0035',
     secondary: '#B0003A',
-    accent: '#FF4081',
-    pageBg: '#FFF5F8',
-    pageBgTint: '#FCE4EC',
+    accent: '#FF1F6B',
     secondaryGlowRgb: '176, 0, 58',
-    accentGlowRgb: '255, 64, 129',
+    accentGlowRgb: '255, 31, 107',
   }),
   padel: build({
     primary: '#004D40',
     secondary: '#00796B',
-    accent: '#64FFDA',
-    pageBg: '#F0FAFA',
-    pageBgTint: '#E0F2F1',
+    accent: '#00FFC2',
     secondaryGlowRgb: '0, 121, 107',
-    accentGlowRgb: '100, 255, 218',
+    accentGlowRgb: '0, 255, 194',
   }),
   pickleball: build({
     primary: '#7A3D00',
     secondary: '#C46C00',
-    accent: '#FFD740',
-    pageBg: '#FFFBF0',
-    pageBgTint: '#FFF8E1',
+    accent: '#FFD200',
     secondaryGlowRgb: '196, 108, 0',
-    accentGlowRgb: '255, 215, 64',
+    accentGlowRgb: '255, 210, 0',
   }),
 };
 
@@ -204,20 +217,22 @@ export const spacing = {
   xxxl: 48,
 } as const;
 
+// Sharper, engineered corners — pro-sports precision.
 export const radii = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 28,
+  xs: 2,
+  sm: 4,
+  md: 6,
+  lg: 8,
+  xl: 12,
+  xxl: 16,
   pill: 999,
 } as const;
 
-// System fonts. Android → Roboto; iOS → San Francisco. Loaded Inter overrides both.
+// Bebas Neue → display/h1/scoreboard. Inter → body/UI.
 export const fonts = {
   heading: Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' }) as string,
   body: Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' }) as string,
+  display: 'BebasNeue_400Regular',
   heading600: 'Inter_600SemiBold',
   heading700: 'Inter_700Bold',
   heading800: 'Inter_800ExtraBold',
@@ -228,19 +243,29 @@ export const fonts = {
 };
 
 export const typography = {
+  // The stadium-scoreboard headline — used for the rating number, app brand, hero titles.
   display: {
-    fontSize: 32,
-    lineHeight: 38,
-    fontWeight: '900' as const,
-    letterSpacing: -0.5,
-    fontFamily: fonts.heading900,
+    fontSize: 36,
+    lineHeight: 40,
+    fontWeight: '400' as const,
+    letterSpacing: 1,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase' as const,
+  },
+  scoreboard: {
+    fontSize: 76,
+    lineHeight: 82,
+    fontWeight: '400' as const,
+    letterSpacing: 2,
+    fontFamily: fonts.display,
   },
   h1: {
-    fontSize: 26,
+    fontSize: 28,
     lineHeight: 32,
-    fontWeight: '800' as const,
-    letterSpacing: -0.3,
-    fontFamily: fonts.heading800,
+    fontWeight: '400' as const,
+    letterSpacing: 0.6,
+    fontFamily: fonts.display,
+    textTransform: 'uppercase' as const,
   },
   h2: {
     fontSize: 20,
@@ -295,20 +320,23 @@ export const typography = {
   overline: {
     fontSize: 11,
     lineHeight: 14,
-    fontWeight: '700' as const,
-    letterSpacing: 1.2,
+    fontWeight: '400' as const,
+    letterSpacing: 1.6,
     textTransform: 'uppercase' as const,
-    fontFamily: fonts.heading700,
+    fontFamily: fonts.display,
   },
   button: {
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '700' as const,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     fontFamily: fonts.heading700,
   },
 };
 
+// Shadows are mostly invisible on near-black surfaces — the dark-mode design
+// leans on 1px borders for depth. Kept here for use on bright accent buttons
+// and floating overlays that sit above the base.
 export const shadows = {
   none: {
     shadowColor: 'transparent',
@@ -318,46 +346,46 @@ export const shadows = {
   },
   sm: {
     shadowColor: '#000',
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.5,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
   md: {
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.5,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
   lg: {
     shadowColor: '#000',
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.55,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   },
   xl: {
     shadowColor: '#000',
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.6,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: 14 },
     elevation: 12,
   },
-  // Web parity: matches site.css `box-shadow: 0 10px 30px rgba(0,0,0,0.08)`.
-  // The signature card lift used everywhere on the web.
+  // Card lift — kept as a subtle drop for sheets/floats only.
   card: {
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
     elevation: 4,
   },
 } as const;
 
+// Colored glow — used for the rating number radiating cyber-orange off the screen.
 export function coloredShadow(hex: string, intensity: 'sm' | 'md' | 'lg' = 'md') {
   const base = shadows[intensity];
-  return { ...base, shadowColor: hex, shadowOpacity: 0.25, elevation: base.elevation + 2 };
+  return { ...base, shadowColor: hex, shadowOpacity: 0.55, elevation: base.elevation + 2 };
 }
 
 export const motion = {

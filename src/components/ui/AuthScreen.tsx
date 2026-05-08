@@ -2,7 +2,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { DEFAULT_THEME, radii, shadows, spacing, typography } from '../../theme';
+import { DEFAULT_THEME, radii, spacing, typography } from '../../theme';
 import KeyboardAware from './KeyboardAware';
 
 interface Props {
@@ -24,8 +24,8 @@ interface Props {
 const T = DEFAULT_THEME;
 
 /**
- * Shared shell for auth screens — gradient bg, decorative orbs, optional branding,
- * a centered white card with title/subtitle and form children.
+ * Shared shell for auth screens — pro-sports dark base, faint sport-tinted
+ * gradient wash, dark surface card, cyber-accent ornaments.
  */
 export default function AuthScreen({
   title, subtitle, showBranding, icon, iconTone = 'accent', onBack, footer, children, style,
@@ -37,7 +37,7 @@ export default function AuthScreen({
   const iconColor =
     iconTone === 'success' ? T.successGreen :
     iconTone === 'danger'  ? T.dangerRed :
-    T.primary;
+    T.accent;
 
   return (
     <LinearGradient
@@ -47,7 +47,10 @@ export default function AuthScreen({
       style={[{ flex: 1 }, style]}
     >
       <View pointerEvents="none" style={[styles.orb, styles.orbA, { backgroundColor: T.accentLight }]} />
-      <View pointerEvents="none" style={[styles.orb, styles.orbB, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />
+      <View pointerEvents="none" style={[styles.orb, styles.orbB, { backgroundColor: 'rgba(255,255,255,0.025)' }]} />
+
+      {/* Diagonal slash — implied motion against the dark base. */}
+      <View pointerEvents="none" style={[styles.slash, { backgroundColor: T.accent, opacity: 0.06 }]} />
 
       {onBack ? (
         <Pressable onPress={onBack} style={styles.back} hitSlop={10}>
@@ -76,11 +79,14 @@ export default function AuthScreen({
               <Ionicons name={icon} size={28} color={iconColor} />
             </View>
           ) : null}
-          <Text style={[typography.h1, { color: T.primary, textAlign: 'center', marginBottom: subtitle ? 4 : spacing.lg }]}>
+          <Text style={[
+            typography.h1,
+            { color: T.textPrimary, textAlign: 'center', marginBottom: subtitle ? 4 : spacing.lg },
+          ]}>
             {title}
           </Text>
           {subtitle ? (
-            <Text style={[typography.small, { color: T.textMuted, textAlign: 'center', marginBottom: spacing.xl }]}>
+            <Text style={[typography.small, { color: T.textSecondary, textAlign: 'center', marginBottom: spacing.xl }]}>
               {subtitle}
             </Text>
           ) : null}
@@ -96,48 +102,59 @@ export default function AuthScreen({
 const styles = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg, paddingTop: spacing.xxxl, paddingBottom: spacing.xxxl },
   orb: { position: 'absolute', borderRadius: 999 },
-  orbA: { width: 320, height: 320, top: -100, right: -80, opacity: 0.8 },
+  orbA: { width: 320, height: 320, top: -100, right: -80, opacity: 0.7 },
   orbB: { width: 260, height: 260, bottom: -60, left: -80 },
+  slash: {
+    position: 'absolute',
+    width: 600, height: 2,
+    top: '40%',
+    left: -100,
+    transform: [{ rotate: '-12deg' }],
+  },
 
   logoArea: { alignItems: 'center', marginBottom: spacing.xl },
   logoBox: {
-    width: 88, height: 88, borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.22)',
+    width: 88, height: 88, borderRadius: radii.lg,
+    backgroundColor: T.cardBg,
+    borderWidth: 1, borderColor: T.border,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: spacing.md,
-    shadowColor: T.accent, shadowOpacity: 0.4, shadowRadius: 20, elevation: 8,
+    shadowColor: T.accent, shadowOpacity: 0.55, shadowRadius: 24, elevation: 10,
   },
   logoImg: { width: 58, height: 58 },
   badge: {
     ...typography.overline,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.85)',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    color: T.accent,
+    backgroundColor: T.accentLight,
+    borderWidth: 1, borderColor: T.accent,
     paddingHorizontal: 12, paddingVertical: 4,
-    borderRadius: radii.pill,
+    borderRadius: radii.sm,
     overflow: 'hidden',
     marginBottom: spacing.md,
   },
   appName: {
     color: '#fff',
-    fontSize: 36, fontWeight: '900',
-    letterSpacing: -1.2,
+    fontSize: 44,
+    letterSpacing: 1.5,
     fontFamily: typography.display.fontFamily,
+    textTransform: 'uppercase',
   },
   tagline: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14, marginTop: 4,
-    letterSpacing: 0.2,
+    color: T.textSecondary,
+    fontSize: 13,
+    marginTop: 4,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
     fontFamily: typography.body.fontFamily,
   },
 
   card: {
-    backgroundColor: '#fff',
-    borderRadius: radii.xxl,
+    backgroundColor: T.cardBg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: T.border,
     padding: spacing.xl,
-    ...shadows.xl,
   },
   iconCircle: {
     width: 64, height: 64, borderRadius: 32,

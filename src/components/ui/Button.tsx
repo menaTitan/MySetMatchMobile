@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle } from 
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSport } from '../../context/SportContext';
-import { radii, shadows, spacing, typography } from '../../theme';
+import { coloredShadow, radii, shadows, spacing, typography } from '../../theme';
 
 type Variant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger' | 'glass';
 type Size = 'sm' | 'md' | 'lg';
@@ -50,7 +50,7 @@ export default function Button({
     ...typography.button,
     fontSize: s.font,
     textTransform: (uppercase ? 'uppercase' : 'none') as any,
-    letterSpacing: uppercase ? 0.6 : 0.2,
+    letterSpacing: uppercase ? 0.8 : 0.2,
   };
 
   const content = (color: string) => (
@@ -73,26 +73,26 @@ export default function Button({
     ...(Array.isArray(style) ? style : style ? [style] : []),
   ];
 
+  // Primary CTA — solid cyber-accent block with sharp corners and a colored glow.
   if (variant === 'primary') {
     return (
       <Pressable onPress={onPress} disabled={isDisabled} style={({ pressed }) => [
-        outerStyle, { ...shadows.md, shadowColor: theme.primary, shadowOpacity: 0.25 },
+        outerStyle,
+        coloredShadow(theme.accent, 'md'),
+        { backgroundColor: theme.accent, ...baseInner },
         pressed && pressStyle,
       ]}>
-        <LinearGradient colors={[theme.secondary, theme.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={baseInner}>
-          {content('#fff')}
-        </LinearGradient>
+        {content(theme.textInverse)}
       </Pressable>
     );
   }
   if (variant === 'accent') {
     return (
       <Pressable onPress={onPress} disabled={isDisabled} style={({ pressed }) => [
-        outerStyle, { ...shadows.md, shadowColor: theme.accent, shadowOpacity: 0.35 },
-        pressed && pressStyle,
+        outerStyle, coloredShadow(theme.accent, 'md'), pressed && pressStyle,
       ]}>
         <LinearGradient colors={theme.accentGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={baseInner}>
-          {content(theme.primary)}
+          {content(theme.textInverse)}
         </LinearGradient>
       </Pressable>
     );
@@ -100,7 +100,10 @@ export default function Button({
   if (variant === 'secondary') {
     return (
       <Pressable onPress={onPress} disabled={isDisabled} style={({ pressed }) => [
-        outerStyle, { backgroundColor: theme.divider }, baseInner, pressed && pressStyle,
+        outerStyle,
+        { backgroundColor: theme.cardBg, borderWidth: 1, borderColor: theme.border },
+        baseInner,
+        pressed && pressStyle,
       ]}>
         {content(theme.textPrimary)}
       </Pressable>
@@ -109,12 +112,11 @@ export default function Button({
   if (variant === 'danger') {
     return (
       <Pressable onPress={onPress} disabled={isDisabled} style={({ pressed }) => [
-        outerStyle, { ...shadows.md, shadowColor: theme.dangerRed, shadowOpacity: 0.3 },
+        outerStyle, { ...shadows.md, shadowColor: theme.dangerRed, shadowOpacity: 0.4 },
+        { backgroundColor: theme.dangerRed, ...baseInner },
         pressed && pressStyle,
       ]}>
-        <LinearGradient colors={['#EF4444', '#DC2626']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={baseInner}>
-          {content('#fff')}
-        </LinearGradient>
+        {content('#fff')}
       </Pressable>
     );
   }
@@ -122,7 +124,7 @@ export default function Button({
     return (
       <Pressable onPress={onPress} disabled={isDisabled} style={({ pressed }) => [
         outerStyle,
-        { backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' },
+        { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
         baseInner,
         pressed && pressStyle,
       ]}>
@@ -135,7 +137,7 @@ export default function Button({
     <Pressable onPress={onPress} disabled={isDisabled} style={({ pressed }) => [
       outerStyle, baseInner, pressed && pressStyle,
     ]}>
-      {content(theme.primary)}
+      {content(theme.accent)}
     </Pressable>
   );
 }

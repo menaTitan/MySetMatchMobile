@@ -13,11 +13,14 @@ interface Props {
 export default function ErrorView({ title = "Couldn't load", message, onRetry }: Props) {
   const { theme } = useSport();
   return (
-    <View style={styles.wrap}>
-      <View style={[styles.iconBox, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+    <View style={[styles.wrap, { backgroundColor: theme.pageBg }]}>
+      <View style={[styles.iconBox, { backgroundColor: 'rgba(239,68,68,0.10)', borderColor: 'rgba(239,68,68,0.35)' }]}>
         <Ionicons name="cloud-offline-outline" size={30} color={theme.dangerRed} />
       </View>
-      <Text style={[typography.h3, { color: theme.textPrimary, textAlign: 'center' }]}>{title}</Text>
+      <Text style={[
+        typography.h3,
+        { color: theme.textPrimary, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.8 },
+      ]}>{title}</Text>
       {message ? (
         <Text style={[typography.small, { color: theme.textMuted, textAlign: 'center', maxWidth: 300 }]}>
           {message}
@@ -28,12 +31,12 @@ export default function ErrorView({ title = "Couldn't load", message, onRetry }:
           onPress={onRetry}
           style={({ pressed }) => [
             styles.retryBtn,
-            { backgroundColor: theme.primary },
+            { backgroundColor: theme.accent },
             pressed && { opacity: 0.85 },
           ]}
         >
-          <Ionicons name="refresh" size={14} color="#fff" />
-          <Text style={[typography.smallStrong, { color: '#fff' }]}>Try again</Text>
+          <Ionicons name="refresh" size={14} color={theme.textInverse} />
+          <Text style={[typography.button, { color: theme.textInverse }]}>Try again</Text>
         </Pressable>
       ) : null}
     </View>
@@ -46,14 +49,15 @@ const styles = StyleSheet.create({
     padding: spacing.xl, gap: spacing.sm,
   },
   iconBox: {
-    width: 72, height: 72, borderRadius: 24,
+    width: 72, height: 72, borderRadius: radii.lg,
+    borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: spacing.xs,
   },
   retryBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: spacing.base, paddingVertical: 10,
-    borderRadius: radii.pill,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: spacing.lg, paddingVertical: 12,
+    borderRadius: radii.md,
     marginTop: spacing.md,
   },
 });

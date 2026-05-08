@@ -64,11 +64,19 @@ const CommunityStack = createNativeStackNavigator();
 const MarketStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 
-function makeHeaderStyle(primary: string) {
+function makeHeaderStyle(_primary: string) {
+  // Headers sit on the near-black base; we drop the heavy primary fill in favor
+  // of a flat surface with a 1px bottom border via headerShadowVisible: false.
   return {
-    headerStyle: { backgroundColor: primary },
-    headerTintColor: '#fff',
-    headerTitleStyle: { fontWeight: '800' as const, fontSize: 18, fontFamily: typography.h3.fontFamily },
+    headerStyle: { backgroundColor: '#101014' },
+    headerTintColor: '#FAFAFA',
+    headerTitleStyle: {
+      fontWeight: '400' as const,
+      fontSize: 18,
+      letterSpacing: 1.2,
+      fontFamily: typography.display.fontFamily,
+      textTransform: 'uppercase' as const,
+    },
     headerShadowVisible: false,
   };
 }
@@ -198,29 +206,27 @@ function TabsNav() {
           const set = TAB_ICONS[route.name] ?? TAB_ICONS.Home;
           const name = focused ? set.on : set.off;
           return (
-            <View style={[styles.iconWrap, focused && { backgroundColor: 'rgba(255,255,255,0.14)' }]}>
+            <View style={[styles.iconWrap, focused && { backgroundColor: `${theme.accent}1F` }]}>
               <Ionicons name={name} size={focused ? 24 : 22} color={color} />
             </View>
           );
         },
         tabBarActiveTintColor: theme.accent,
-        tabBarInactiveTintColor: 'rgba(255,255,255,0.6)',
+        tabBarInactiveTintColor: theme.textMuted,
         tabBarStyle: {
-          backgroundColor: theme.primary,
-          borderTopWidth: 0,
+          backgroundColor: theme.pageBg,
+          borderTopWidth: 1,
+          borderTopColor: theme.border,
           paddingTop: 6,
           paddingBottom: Platform.OS === 'ios' ? 24 : 12,
           height: Platform.OS === 'ios' ? 86 : 70,
-          elevation: 12,
-          shadowColor: '#000',
-          shadowOpacity: 0.18,
-          shadowRadius: 18,
-          shadowOffset: { width: 0, height: -4 },
+          elevation: 0,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '700',
-          letterSpacing: 0.3,
+          letterSpacing: 1,
+          textTransform: 'uppercase',
           marginTop: -2,
           fontFamily: typography.caption.fontFamily,
         },
@@ -264,7 +270,7 @@ export default function AppNavigator() {
 
 const styles = StyleSheet.create({
   iconWrap: {
-    width: 48, height: 32, borderRadius: 16,
+    width: 48, height: 32, borderRadius: 4,
     alignItems: 'center', justifyContent: 'center',
   },
 });

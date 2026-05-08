@@ -1,9 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSport } from '../../context/SportContext';
-import { radii, shadows, spacing, typography } from '../../theme';
+import { radii, spacing, typography } from '../../theme';
 
 type IconColor = 'blue' | 'accent' | 'green' | 'orange' | 'purple' | 'red';
 
@@ -17,46 +16,64 @@ interface Props {
   orientation?: 'horizontal' | 'vertical';
 }
 
-const GRADIENTS: Record<IconColor, readonly [string, string]> = {
-  blue:   ['#2B4C8C', '#1A365D'],
-  accent: ['#FF9F1C', '#C87A00'],
-  green:  ['#22c55e', '#16a34a'],
-  orange: ['#f59e0b', '#d97706'],
-  purple: ['#8b5cf6', '#7c3aed'],
-  red:    ['#ef4444', '#dc2626'],
+const ICON_TINT: Record<IconColor, string> = {
+  blue:   '#38BDF8',
+  accent: '#FF5500',
+  green:  '#22C55E',
+  orange: '#F59E0B',
+  purple: '#A78BFA',
+  red:    '#EF4444',
 };
 
 export default function StatTile({
   label, value, sublabel, icon, iconColor = 'blue', style, orientation = 'horizontal',
 }: Props) {
   const { theme } = useSport();
+  const tint = ICON_TINT[iconColor];
+  const iconBg = `${tint}1F`; // ~12% alpha appended
 
   if (orientation === 'vertical') {
     return (
-      <View style={[styles.wrapV, { backgroundColor: theme.cardBg }, shadows.md, style]}>
+      <View style={[
+        styles.wrapV,
+        { backgroundColor: theme.cardBg, borderColor: theme.border },
+        style,
+      ]}>
         {icon ? (
-          <LinearGradient colors={GRADIENTS[iconColor]} style={styles.iconV}>
-            <Ionicons name={icon} size={18} color="#fff" />
-          </LinearGradient>
+          <View style={[styles.iconV, { backgroundColor: iconBg }]}>
+            <Ionicons name={icon} size={18} color={tint} />
+          </View>
         ) : null}
-        <Text style={[typography.h1, { color: theme.primary, marginTop: icon ? spacing.sm : 0 }]}>{value}</Text>
-        <Text style={[typography.caption, { color: theme.textMuted, marginTop: 2 }]}>{label}</Text>
-        {sublabel ? <Text style={[typography.caption, { color: theme.textSecondary, marginTop: 2 }]}>{sublabel}</Text> : null}
+        <Text style={[
+          typography.display,
+          { color: theme.textPrimary, fontSize: 30, lineHeight: 34, marginTop: icon ? spacing.sm : 0 },
+        ]}>{value}</Text>
+        <Text style={[typography.overline, { color: theme.textSecondary, marginTop: 2 }]}>{label}</Text>
+        {sublabel ? (
+          <Text style={[typography.caption, { color: theme.textMuted, marginTop: 2 }]}>{sublabel}</Text>
+        ) : null}
       </View>
     );
   }
 
   return (
-    <View style={[styles.wrap, { backgroundColor: theme.cardBg }, shadows.md, style]}>
+    <View style={[
+      styles.wrap,
+      { backgroundColor: theme.cardBg, borderColor: theme.border },
+      style,
+    ]}>
       {icon ? (
-        <LinearGradient colors={GRADIENTS[iconColor]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.icon}>
-          <Ionicons name={icon} size={20} color="#fff" />
-        </LinearGradient>
+        <View style={[styles.icon, { backgroundColor: iconBg }]}>
+          <Ionicons name={icon} size={20} color={tint} />
+        </View>
       ) : null}
       <View style={{ flex: 1 }}>
-        <Text style={[typography.h2, { color: theme.primary, fontSize: 22 }]}>{value}</Text>
-        <Text style={[typography.caption, { color: theme.textMuted, marginTop: 2 }]}>{label}</Text>
-        {sublabel ? <Text style={[typography.caption, { color: theme.textSecondary }]}>{sublabel}</Text> : null}
+        <Text style={[
+          typography.display,
+          { color: theme.textPrimary, fontSize: 26, lineHeight: 30 },
+        ]}>{value}</Text>
+        <Text style={[typography.overline, { color: theme.textSecondary, marginTop: 2 }]}>{label}</Text>
+        {sublabel ? <Text style={[typography.caption, { color: theme.textMuted }]}>{sublabel}</Text> : null}
       </View>
     </View>
   );
@@ -64,24 +81,27 @@ export default function StatTile({
 
 const styles = StyleSheet.create({
   wrap: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     borderRadius: radii.lg,
+    borderWidth: 1,
     padding: spacing.base,
   },
   wrapV: {
     alignItems: 'center',
     borderRadius: radii.lg,
+    borderWidth: 1,
     padding: spacing.base,
     minWidth: 80,
   },
   icon: {
-    width: 48, height: 48, borderRadius: 14,
+    width: 44, height: 44, borderRadius: radii.md,
     alignItems: 'center', justifyContent: 'center',
   },
   iconV: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 40, height: 40, borderRadius: radii.md,
     alignItems: 'center', justifyContent: 'center',
   },
 });

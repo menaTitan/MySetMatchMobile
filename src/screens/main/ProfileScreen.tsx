@@ -222,11 +222,24 @@ function InfoRow({ icon, label, value, last }: { icon: any; label: string; value
   const { theme } = useSport();
   return (
     <View style={[styles.infoRow, !last && { borderBottomWidth: 1, borderBottomColor: theme.divider }]}>
-      <View style={[styles.infoIcon, { backgroundColor: theme.featureBg }]}>
-        <Ionicons name={icon} size={14} color={theme.secondary} />
+      <View style={[styles.infoIcon, { backgroundColor: theme.featureBg, borderColor: theme.border }]}>
+        <Ionicons name={icon} size={14} color={theme.accent} />
       </View>
-      <Text style={[typography.small, { color: theme.textMuted, flex: 1 }]}>{label}</Text>
-      <Text style={[typography.bodyStrong, { color: theme.textPrimary }]}>{value}</Text>
+      <Text style={[typography.overline, { color: theme.textMuted, flex: 1, fontSize: 11 }]}>{label}</Text>
+      <View style={[
+        {
+          paddingHorizontal: 8, paddingVertical: 3,
+          borderRadius: 4,
+          borderWidth: 1,
+          borderColor: `${theme.accent}40`,
+          backgroundColor: theme.featureBg,
+        },
+      ]}>
+        <Text style={[
+          typography.caption,
+          { color: theme.accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
+        ]}>{value}</Text>
+      </View>
     </View>
   );
 }
@@ -283,7 +296,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm, paddingVertical: spacing.sm + 2,
   },
   infoIcon: {
-    width: 30, height: 30, borderRadius: 8,
+    width: 30, height: 30, borderRadius: 6,
+    borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
 });

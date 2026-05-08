@@ -22,8 +22,8 @@ export default function Avatar({ name, photoUrl, size = 48, borderColor, style }
     return <View style={[wrap, style]}><Image source={{ uri: photoUrl }} style={{ width: '100%', height: '100%' }} /></View>;
   }
   return (
-    <View style={[wrap, styles.center, { backgroundColor: theme.secondary }, style]}>
-      <Text style={{ color: '#fff', fontSize: size * 0.4, fontWeight: '800' }}>{letter}</Text>
+    <View style={[wrap, styles.center, { backgroundColor: theme.cardBg, borderWidth: 1, borderColor: theme.border }, style]}>
+      <Text style={{ color: theme.accent, fontSize: size * 0.42, fontWeight: '800' }}>{letter}</Text>
     </View>
   );
 }

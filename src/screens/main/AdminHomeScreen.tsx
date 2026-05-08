@@ -33,22 +33,22 @@ export default function AdminHomeScreen({ navigation }: any) {
           <StatTile label="Active" value={data.activeTournaments} icon="flame-outline" iconColor="red" />
           <StatTile label="Matches" value={data.completedMatches} icon="tennisball-outline" iconColor="green" />
         </View>
-        <Card>
-          <Text style={[typography.caption, { color: theme.textMuted, letterSpacing: 1 }]}>TOTAL REVENUE</Text>
-          <Text style={[typography.display, { color: theme.primary, marginTop: 4 }]}>
+        <Card borderLeftColor={theme.dangerRed}>
+          <Text style={[typography.overline, { color: theme.dangerRed }]}>ADMIN · TOTAL REVENUE</Text>
+          <Text style={[typography.scoreboard, { color: theme.textPrimary, marginTop: 4, fontSize: 44, lineHeight: 48 }]}>
             ${data.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </Text>
         </Card>
 
-        {/* Actions — modern tile grid */}
+        {/* Admin tiles — neon red signals authority and sensitive control. */}
         <FeatureTileGrid
           tiles={[
-            { key: 'users',     icon: 'people',          label: 'Users',       hint: 'Search, suspend, edit, roles',  tint: 'blue',   onPress: () => navigation.navigate('AdminUsers') },
-            { key: 'payments',  icon: 'card',            label: 'Payments',    hint: 'View payments & refunds',        tint: 'accent', onPress: () => navigation.navigate('AdminPayments') },
-            { key: 'tourns',    icon: 'trophy',          label: 'Tournaments', hint: 'All tournaments overview',       tint: 'green',  onPress: () => navigation.navigate('AdminTournaments') },
+            { key: 'users',     icon: 'people',          label: 'Users',       hint: 'Search, suspend, edit, roles',  tint: 'red',    onPress: () => navigation.navigate('AdminUsers') },
+            { key: 'payments',  icon: 'card',            label: 'Payments',    hint: 'View payments & refunds',        tint: 'red',    onPress: () => navigation.navigate('AdminPayments') },
+            { key: 'tourns',    icon: 'trophy',          label: 'Tournaments', hint: 'All tournaments overview',       tint: 'red',    onPress: () => navigation.navigate('AdminTournaments') },
             { key: 'analytics', icon: 'bar-chart',       label: 'Analytics',   hint: 'Platform usage & revenue',       tint: 'red',    onPress: () => navigation.navigate('AdminAnalytics') },
-            { key: 'locations', icon: 'location',        label: 'Locations',   hint: 'Countries, regions, cities',     tint: 'blue',   onPress: () => navigation.navigate('AdminLocations') },
-            { key: 'debug',     icon: 'construct',       label: 'Debug & QA',  hint: 'Recalc, seed, test data',        tint: 'accent', onPress: () => navigation.navigate('AdminDebug') },
+            { key: 'locations', icon: 'location',        label: 'Locations',   hint: 'Countries, regions, cities',     tint: 'red',    onPress: () => navigation.navigate('AdminLocations') },
+            { key: 'debug',     icon: 'construct',       label: 'Debug & QA',  hint: 'Recalc, seed, test data',        tint: 'red',    onPress: () => navigation.navigate('AdminDebug') },
           ]}
         />
       </ScrollView>

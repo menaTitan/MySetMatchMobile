@@ -7,8 +7,8 @@ export default function LoadingView({ message }: { message?: string }) {
   const { theme } = useSport();
   return (
     <View style={[styles.wrap, { backgroundColor: theme.pageBg }]}>
-      <ActivityIndicator size="large" color={theme.primary} />
-      {message ? <Text style={[typography.small, { color: theme.textMuted, marginTop: spacing.md }]}>{message}</Text> : null}
+      <ActivityIndicator size="large" color={theme.accent} />
+      {message ? <Text style={[typography.overline, { color: theme.textMuted, marginTop: spacing.md, fontSize: 11 }]}>{message}</Text> : null}
     </View>
   );
 }

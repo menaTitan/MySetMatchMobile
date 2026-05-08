@@ -96,10 +96,10 @@ function ToastRow({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => voi
 
 function getPalette(kind: ToastKind): { bg: string; icon: keyof typeof Ionicons.glyphMap } {
   switch (kind) {
-    case 'success': return { bg: '#16a34a', icon: 'checkmark-circle' };
-    case 'error':   return { bg: '#dc2626', icon: 'alert-circle' };
-    case 'warning': return { bg: '#d97706', icon: 'warning' };
-    default:        return { bg: '#2563eb', icon: 'information-circle' };
+    case 'success': return { bg: '#15803D', icon: 'checkmark-circle' };
+    case 'error':   return { bg: '#B91C1C', icon: 'alert-circle' };
+    case 'warning': return { bg: '#B45309', icon: 'warning' };
+    default:        return { bg: '#1C1C22', icon: 'information-circle' };
   }
 }
 
@@ -120,11 +120,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+    shadowOpacity: 0.6,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    elevation: 10,
   },
 });

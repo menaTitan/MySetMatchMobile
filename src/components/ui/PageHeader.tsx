@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSport } from '../../context/SportContext';
-import { radii, spacing, typography } from '../../theme';
+import { spacing, typography } from '../../theme';
 
 interface Props {
   title: string;
@@ -13,8 +13,8 @@ interface Props {
 }
 
 /**
- * Gradient page header — mirrors .page-header on the website.
- * Renders a 135° secondary→primary gradient with radial orb accents.
+ * Pro-sports page header — flat dark slab with an accent slash and sharp
+ * bottom divider. No soft curves.
  */
 export default function PageHeader({ title, subtitle, right, children, compact }: Props) {
   const { theme } = useSport();
@@ -25,8 +25,8 @@ export default function PageHeader({ title, subtitle, right, children, compact }
       end={{ x: 1, y: 1 }}
       style={[styles.wrap, compact && styles.compact]}
     >
-      {/* Decorative radial orb */}
-      <View pointerEvents="none" style={[styles.orb, { backgroundColor: theme.accentLight }]} />
+      <View pointerEvents="none" style={[styles.slash, { backgroundColor: theme.accent, opacity: 0.12 }]} />
+      <View pointerEvents="none" style={[styles.divider, { backgroundColor: theme.border }]} />
 
       <View style={styles.row}>
         <View style={{ flex: 1, paddingRight: right ? spacing.md : 0 }}>
@@ -45,25 +45,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl + 8,
-    borderBottomLeftRadius: radii.xxl,
-    borderBottomRightRadius: radii.xxl,
     overflow: 'hidden',
   },
   compact: { paddingTop: spacing.base, paddingBottom: spacing.lg },
-  orb: {
+  slash: {
     position: 'absolute',
-    top: -60,
-    right: -40,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    opacity: 0.55,
+    width: 600, height: 1.5,
+    top: '40%',
+    left: -100,
+    transform: [{ rotate: '-10deg' }],
+  },
+  divider: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    height: 1,
   },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { color: '#fff' },
   subtitle: {
     ...typography.small,
-    color: 'rgba(255,255,255,0.82)',
+    color: 'rgba(250,250,250,0.7)',
     marginTop: 4,
   },
 });

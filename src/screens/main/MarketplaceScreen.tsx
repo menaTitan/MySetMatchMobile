@@ -440,7 +440,7 @@ function PickerField({ label, value, onPress }: { label: string; value: string; 
         onPress={onPress}
         style={({ pressed }) => [
           styles.pickerRow,
-          { borderColor: pressed ? theme.secondary : theme.border, backgroundColor: '#F7FAFC' },
+          { borderColor: pressed ? theme.accent : theme.border, backgroundColor: theme.cardBg },
         ]}
       >
         <Text style={{ flex: 1, fontSize: 15, color: theme.textPrimary }}>{value}</Text>

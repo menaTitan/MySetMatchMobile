@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet, Image, Text, ActivityIndicator } from 'react-native';
@@ -9,14 +9,28 @@ import {
   Inter_400Regular, Inter_500Medium, Inter_600SemiBold,
   Inter_700Bold, Inter_800ExtraBold, Inter_900Black,
 } from '@expo-google-fonts/inter';
+import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SportProvider } from './src/context/SportContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import { navigationRef } from './src/navigation/navigationRef';
-import { DEFAULT_THEME } from './src/theme';
+import { DEFAULT_THEME, typography } from './src/theme';
 import { ToastProvider } from './src/components/ui';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
+
+const NAV_THEME = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: DEFAULT_THEME.pageBg,
+    card: DEFAULT_THEME.pageBg,
+    text: DEFAULT_THEME.textPrimary,
+    border: DEFAULT_THEME.border,
+    primary: DEFAULT_THEME.accent,
+    notification: DEFAULT_THEME.accent,
+  },
+};
 
 function SplashScreen({ message }: { message?: string }) {
   return (
@@ -26,11 +40,12 @@ function SplashScreen({ message }: { message?: string }) {
       end={{ x: 1, y: 1 }}
       style={styles.loading}
     >
+      <View pointerEvents="none" style={[styles.slash, { backgroundColor: DEFAULT_THEME.accent }]} />
       <View style={styles.iconWrap}>
         <Image source={require('./assets/icon.png')} style={styles.icon} resizeMode="contain" />
       </View>
-      <Text style={styles.appName}>MySetMatch</Text>
-      <Text style={styles.tagline}>{message ?? 'Your Multi-Sport Platform'}</Text>
+      <Text style={styles.appName}>MYSETMATCH</Text>
+      <Text style={styles.tagline}>{message ?? 'YOUR MULTI-SPORT PLATFORM'}</Text>
       <ActivityIndicator size="small" color={DEFAULT_THEME.accent} style={styles.spinner} />
     </LinearGradient>
   );
@@ -47,17 +62,17 @@ export default function App() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold,
     Inter_700Bold, Inter_800ExtraBold, Inter_900Black,
+    BebasNeue_400Regular,
   });
 
-  // Proceed once fonts are ready OR if loading errors (don't block the app offline)
-  if (!fontsLoaded && !fontError) return <SplashScreen message="Loading…" />;
+  if (!fontsLoaded && !fontError) return <SplashScreen message="LOADING…" />;
 
   return (
     <SafeAreaProvider>
       <ToastProvider>
         <AuthProvider>
           <SportProvider>
-            <NavigationContainer ref={navigationRef}>
+            <NavigationContainer ref={navigationRef} theme={NAV_THEME}>
               <StatusBar style="light" />
               <RootNavigator />
             </NavigationContainer>
@@ -70,20 +85,34 @@ export default function App() {
 
 const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  slash: {
+    position: 'absolute',
+    width: 800, height: 1.5,
+    top: '45%',
+    left: -100,
+    transform: [{ rotate: '-10deg' }],
+    opacity: 0.18,
+  },
   iconWrap: {
-    width: 120, height: 120, borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.22)',
+    width: 120, height: 120, borderRadius: 8,
+    backgroundColor: DEFAULT_THEME.cardBg,
+    borderWidth: 1, borderColor: DEFAULT_THEME.border,
     justifyContent: 'center', alignItems: 'center',
     marginBottom: 20,
-    shadowColor: DEFAULT_THEME.accent, shadowOpacity: 0.45, shadowRadius: 24, elevation: 8,
+    shadowColor: DEFAULT_THEME.accent, shadowOpacity: 0.55, shadowRadius: 28, elevation: 12,
   },
   icon: { width: 84, height: 84 },
   appName: {
-    color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: -1,
+    color: '#fff',
+    fontSize: 44,
+    letterSpacing: 2.5,
+    fontFamily: typography.display.fontFamily,
   },
   tagline: {
-    color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 4, letterSpacing: 0.3,
+    color: DEFAULT_THEME.textSecondary,
+    fontSize: 12,
+    marginTop: 6,
+    letterSpacing: 1.6,
   },
   spinner: { marginTop: 32 },
 });

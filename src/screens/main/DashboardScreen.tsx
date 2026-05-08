@@ -6,7 +6,7 @@ import { playerApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
 import type { Dashboard } from '../../types';
-import SportDropdown from '../../components/SportDropdown';
+import SportPickerBar from '../../components/SportPickerBar';
 import HomeSearch from '../../components/HomeSearch';
 import MatchCard from '../../components/MatchCard';
 import { radii, shadows, spacing, typography } from '../../theme';
@@ -63,10 +63,7 @@ export default function DashboardScreen({ navigation }: any) {
         }
         showsVerticalScrollIndicator={false}
       >
-        <HeroHeader
-          variant="standard"
-          right={<SportDropdown variant="onPrimary" uppercase />}
-        >
+        <HeroHeader variant="standard">
           <View>
             <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.name}>{firstName} 👋</Text>
@@ -76,7 +73,10 @@ export default function DashboardScreen({ navigation }: any) {
             <Text style={[styles.ratingLabel, { color: 'rgba(255,255,255,0.65)' }]}>
               {currentSport?.name ?? 'Global'} Rating
             </Text>
-            <Text style={[styles.ratingValue, { color: theme.accent }]}>
+            <Text style={[
+              styles.ratingValue,
+              { color: theme.accent, textShadowColor: theme.accentGlow },
+            ]}>
               {rating}
             </Text>
             <View style={styles.rankRow}>
@@ -101,6 +101,9 @@ export default function DashboardScreen({ navigation }: any) {
             />
           </View>
         </HeroHeader>
+
+        {/* Sport selector — horizontal pill row, sticky-feel below the hero. */}
+        <SportPickerBar />
 
         {/* Quick actions — single horizontal row of compact tiles */}
         <View style={styles.quickWrap}>
@@ -179,12 +182,12 @@ export default function DashboardScreen({ navigation }: any) {
                     style={[
                       styles.sportRatingTile,
                       {
-                        borderColor: active ? theme.primary : theme.border,
-                        backgroundColor: active ? theme.accentLight : theme.pageBg,
+                        borderColor: active ? theme.accent : theme.border,
+                        backgroundColor: active ? theme.featureBg : theme.pageBg,
                       },
                     ]}
                   >
-                    <Text style={[styles.sportRatingVal, { color: theme.primary }]}>{sr.globalRating}</Text>
+                    <Text style={[styles.sportRatingVal, { color: active ? theme.accent : theme.textPrimary }]}>{sr.globalRating}</Text>
                     <Text style={[styles.sportRatingName, { color: theme.textMuted }]} numberOfLines={1}>
                       {sr.sportName}
                     </Text>
@@ -211,11 +214,17 @@ export default function DashboardScreen({ navigation }: any) {
                     i > 0 && { borderTopWidth: 1, borderTopColor: theme.divider },
                   ]}
                 >
-                  <View style={[styles.tournamentDate, { backgroundColor: theme.featureBg }]}>
-                    <Text style={[typography.caption, { color: theme.secondary, fontSize: 10 }]}>
+                  <View style={[
+                    styles.tournamentDate,
+                    { backgroundColor: theme.featureBg, borderColor: theme.border, borderWidth: 1 },
+                  ]}>
+                    <Text style={[typography.overline, { color: theme.accent, fontSize: 9 }]}>
                       {new Date(t.startDate).toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}
                     </Text>
-                    <Text style={[typography.h3, { color: theme.primary, fontSize: 18 }]}>
+                    <Text style={[
+                      typography.display,
+                      { color: theme.textPrimary, fontSize: 22, lineHeight: 24 },
+                    ]}>
                       {new Date(t.startDate).getDate()}
                     </Text>
                   </View>
@@ -270,27 +279,28 @@ export default function DashboardScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   greeting: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 13, letterSpacing: 0.2,
+    color: 'rgba(250,250,250,0.55)',
+    fontSize: 11, letterSpacing: 1.6,
+    textTransform: 'uppercase',
     fontFamily: typography.body.fontFamily,
   },
   name: {
     color: '#fff',
-    fontSize: 24, fontWeight: '900',
-    marginTop: 2, letterSpacing: -0.5,
-    fontFamily: typography.h1.fontFamily,
+    fontSize: 28,
+    marginTop: 2, letterSpacing: 1,
+    fontFamily: typography.display.fontFamily,
+    textTransform: 'uppercase',
   },
   ratingHero: { alignItems: 'center', marginTop: spacing.lg },
   ratingLabel: {
-    ...typography.caption, fontSize: 11, letterSpacing: 1.2,
+    ...typography.overline, fontSize: 11, letterSpacing: 1.6,
   },
   ratingValue: {
-    fontSize: 68, fontWeight: '900',
-    letterSpacing: -2, lineHeight: 74,
-    fontFamily: typography.display.fontFamily,
-    textShadowColor: 'rgba(0,0,0,0.15)',
-    textShadowRadius: 10,
-    textShadowOffset: { width: 0, height: 2 },
+    fontSize: 88,
+    letterSpacing: 2, lineHeight: 92,
+    fontFamily: typography.scoreboard.fontFamily,
+    textShadowRadius: 24,
+    textShadowOffset: { width: 0, height: 0 },
   },
   rankRow: {
     flexDirection: 'row', alignItems: 'center',
@@ -324,11 +334,11 @@ const styles = StyleSheet.create({
   sportRatingRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   sportRatingTile: {
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    borderRadius: radii.md, borderWidth: 1.5,
+    borderRadius: radii.md, borderWidth: 1,
     alignItems: 'center', minWidth: 80,
   },
-  sportRatingVal: { fontSize: 18, fontWeight: '800' },
-  sportRatingName: { fontSize: 10, marginTop: 1 },
+  sportRatingVal: { fontSize: 22, fontFamily: typography.display.fontFamily, letterSpacing: 0.6 },
+  sportRatingName: { fontSize: 10, marginTop: 1, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   tournamentRow: {
     flexDirection: 'row', alignItems: 'center',

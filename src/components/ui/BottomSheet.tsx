@@ -38,19 +38,26 @@ export default function BottomSheet({
           <Pressable
             style={[
               styles.sheet,
-              { backgroundColor: theme.cardBg, maxHeight: tall ? '92%' : '78%' },
+              {
+                backgroundColor: theme.surfaceElevated,
+                borderColor: theme.border,
+                borderTopWidth: 1,
+                borderLeftWidth: 1,
+                borderRightWidth: 1,
+                maxHeight: tall ? '92%' : '78%',
+              },
             ]}
             onPress={(e) => e.stopPropagation()}
           >
-            <View style={[styles.handle, { backgroundColor: theme.divider }]} />
+            <View style={[styles.handle, { backgroundColor: theme.borderStrong }]} />
             <View style={styles.header}>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.h2, { color: theme.primary }]}>{title}</Text>
+                <Text style={[typography.h2, { color: theme.textPrimary, textTransform: 'uppercase', letterSpacing: 0.6 }]}>{title}</Text>
                 {subtitle ? (
                   <Text style={[typography.small, { color: theme.textMuted, marginTop: 2 }]}>{subtitle}</Text>
                 ) : null}
               </View>
-              <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.divider }]} hitSlop={8}>
+              <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.cardBg, borderColor: theme.border }]} hitSlop={8}>
                 <Ionicons name="close" size={18} color={theme.textSecondary} />
               </Pressable>
             </View>
@@ -74,16 +81,16 @@ export default function BottomSheet({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   sheet: {
-    borderTopLeftRadius: radii.xxl,
-    borderTopRightRadius: radii.xxl,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
     paddingBottom: spacing.xl,
     overflow: 'hidden',
   },
   handle: {
     alignSelf: 'center',
-    width: 40, height: 4, borderRadius: 2,
+    width: 36, height: 3, borderRadius: 2,
     marginTop: spacing.sm,
   },
   header: {
@@ -96,7 +103,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   closeBtn: {
-    width: 32, height: 32, borderRadius: 16,
+    width: 32, height: 32, borderRadius: radii.sm,
+    borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   body: {

@@ -26,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: 'MySetMatchMobile',
+    name: 'MySetMatch',
     slug: 'MySetMatchMobile',
     version: '1.0.0',
     orientation: 'portrait',

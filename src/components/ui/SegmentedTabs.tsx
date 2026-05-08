@@ -21,9 +21,9 @@ interface Props<K extends string = string> {
 }
 
 /**
- * Horizontally-scrollable segmented control. Two visual variants:
- * - "pill": filled rounded pills with icons (used in PlayHub-style hubs)
- * - "underline": flat tabs with bottom indicator (used inside detail screens)
+ * Pro-sports segmented control.
+ * - "pill": sharp dark pills with cyber-accent active fill.
+ * - "underline": flat tabs with bright accent indicator.
  */
 export default function SegmentedTabs<K extends string = string>({
   tabs, value, onChange, variant = 'pill', scrollable = true, style,
@@ -45,21 +45,30 @@ export default function SegmentedTabs<K extends string = string>({
               style={({ pressed }) => [
                 styles.pill,
                 {
-                  borderColor: active ? theme.primary : theme.border,
-                  backgroundColor: active ? theme.primary : 'transparent',
+                  borderColor: active ? theme.accent : theme.border,
+                  backgroundColor: active ? theme.accent : 'transparent',
                 },
                 pressed && { opacity: 0.85 },
               ]}
             >
               {t.icon ? (
-                <Ionicons name={t.icon} size={14} color={active ? '#fff' : theme.textSecondary} />
+                <Ionicons name={t.icon} size={14} color={active ? theme.textInverse : theme.textSecondary} />
               ) : null}
-              <Text style={[typography.smallStrong, { color: active ? '#fff' : theme.textSecondary }]}>
+              <Text style={[
+                typography.overline,
+                { color: active ? theme.textInverse : theme.textSecondary, fontSize: 11 },
+              ]}>
                 {t.label}
               </Text>
               {typeof t.count === 'number' ? (
-                <View style={[styles.count, { backgroundColor: active ? 'rgba(255,255,255,0.2)' : theme.divider }]}>
-                  <Text style={[styles.countText, { color: active ? '#fff' : theme.textSecondary }]}>{t.count}</Text>
+                <View style={[
+                  styles.count,
+                  { backgroundColor: active ? 'rgba(0,0,0,0.18)' : theme.divider },
+                ]}>
+                  <Text style={[
+                    styles.countText,
+                    { color: active ? theme.textInverse : theme.textSecondary },
+                  ]}>{t.count}</Text>
                 </View>
               ) : null}
             </Pressable>
@@ -74,16 +83,16 @@ export default function SegmentedTabs<K extends string = string>({
           >
             <View style={styles.underlineRowInner}>
               {t.icon ? (
-                <Ionicons name={t.icon} size={15} color={active ? theme.primary : theme.textMuted} />
+                <Ionicons name={t.icon} size={15} color={active ? theme.accent : theme.textMuted} />
               ) : null}
               <Text style={[
-                typography.smallStrong,
-                { color: active ? theme.primary : theme.textMuted, fontWeight: active ? '700' : '600' },
+                typography.overline,
+                { color: active ? theme.accent : theme.textMuted, fontSize: 11 },
               ]}>
                 {t.label}
               </Text>
               {typeof t.count === 'number' ? (
-                <Text style={[typography.caption, { color: active ? theme.primary : theme.textMuted }]}>
+                <Text style={[typography.caption, { color: active ? theme.accent : theme.textMuted }]}>
                   {t.count}
                 </Text>
               ) : null}
@@ -100,8 +109,7 @@ export default function SegmentedTabs<K extends string = string>({
 
   return (
     <View style={[
-      variant === 'pill' && { backgroundColor: theme.cardBg, borderBottomWidth: 1, borderBottomColor: theme.divider },
-      variant === 'underline' && { backgroundColor: theme.cardBg, borderBottomWidth: 1, borderBottomColor: theme.divider },
+      { backgroundColor: theme.pageBg, borderBottomWidth: 1, borderBottomColor: theme.border },
       style,
     ]}>
       {scrollable ? (
@@ -124,14 +132,14 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: radii.pill,
-    borderWidth: 1.5,
+    borderRadius: radii.sm,
+    borderWidth: 1,
   },
   count: {
     minWidth: 18,
     paddingHorizontal: 6,
     paddingVertical: 1,
-    borderRadius: radii.pill,
+    borderRadius: radii.sm,
     alignItems: 'center',
   },
   countText: { fontSize: 10, fontWeight: '800' },
@@ -150,9 +158,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   underlineBar: {
-    height: 3,
+    height: 2,
     width: '100%',
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 2,
   },
 });

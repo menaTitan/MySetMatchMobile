@@ -7,7 +7,7 @@ interface Props {
   children: React.ReactNode;
   style?: ViewStyle | ViewStyle[];
   padding?: keyof typeof spacing | 0;
-  /** "card" matches the website's signature shadow (0 10px 30px). */
+  /** "card" / "lg" only render meaningfully on overlays — base cards rely on a 1px border for depth. */
   elevation?: 'none' | 'sm' | 'md' | 'lg' | 'card';
   onPress?: () => void;
   radius?: keyof typeof radii;
@@ -18,9 +18,9 @@ export default function Card({
   children,
   style,
   padding = 'lg',
-  elevation = 'card',
+  elevation = 'none',
   onPress,
-  radius = 'xl',
+  radius = 'lg',
   borderLeftColor,
 }: Props) {
   const { theme } = useSport();
@@ -29,8 +29,10 @@ export default function Card({
     backgroundColor: theme.cardBg,
     borderRadius: radii[radius],
     padding: pad,
+    borderWidth: 1,
+    borderColor: theme.border,
     ...(elevation !== 'none' ? shadows[elevation] : {}),
-    ...(borderLeftColor ? { borderLeftWidth: 4, borderLeftColor } : {}),
+    ...(borderLeftColor ? { borderLeftWidth: 3, borderLeftColor } : {}),
   };
   if (onPress) {
     return (

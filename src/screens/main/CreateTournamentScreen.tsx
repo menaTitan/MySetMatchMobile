@@ -269,8 +269,8 @@ function PickerRow({
         disabled={disabled}
         style={({ pressed }) => [
           styles.pickerRow,
-          { borderColor: theme.border, backgroundColor: '#F7FAFC', opacity: disabled ? 0.5 : 1 },
-          pressed && { borderColor: theme.secondary },
+          { borderColor: theme.border, backgroundColor: theme.cardBg, opacity: disabled ? 0.5 : 1 },
+          pressed && { borderColor: theme.accent },
         ]}
       >
         <Ionicons name={icon} size={18} color={theme.textMuted} style={{ marginRight: 8 }} />

@@ -27,7 +27,6 @@ interface Props {
 
 /**
  * A unified row: leading visual, title/subtitle/meta stack, optional trailing slot.
- * Replaces hand-rolled rows for tournaments/players/listings/chats/etc.
  */
 export default function ListRow({
   icon, iconColor, iconBg, leading,
@@ -38,8 +37,8 @@ export default function ListRow({
   const { theme } = useSport();
 
   const left = leading ?? (icon ? (
-    <View style={[styles.iconBox, { backgroundColor: iconBg ?? theme.featureBg }]}>
-      <Ionicons name={icon} size={18} color={iconColor ?? theme.secondary} />
+    <View style={[styles.iconBox, { backgroundColor: iconBg ?? theme.featureBg, borderColor: theme.border }]}>
+      <Ionicons name={icon} size={18} color={iconColor ?? theme.accent} />
     </View>
   ) : null);
 
@@ -94,6 +93,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 40, height: 40,
     borderRadius: radii.md,
+    borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   trailing: { alignSelf: 'center', flexShrink: 0 },

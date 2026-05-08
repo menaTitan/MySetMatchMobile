@@ -163,8 +163,8 @@ function PickerField({
         disabled={disabled}
         style={({ pressed }) => [
           styles.pickerRow,
-          { borderColor: T.border, backgroundColor: '#F7FAFC', opacity: disabled ? 0.5 : 1 },
-          pressed && { borderColor: T.secondary },
+          { borderColor: T.border, backgroundColor: T.cardBg, opacity: disabled ? 0.5 : 1 },
+          pressed && { borderColor: T.accent },
         ]}
       >
         <Ionicons name={icon} size={18} color={T.textMuted} style={{ marginRight: 8 }} />
@@ -228,8 +228,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: spacing.lg, marginBottom: spacing.sm,
     paddingHorizontal: 12, paddingVertical: 10,
-    borderRadius: radii.md, backgroundColor: '#F7FAFC',
-    borderWidth: 1, borderColor: '#E2E8F0',
+    borderRadius: radii.md, backgroundColor: T.cardBg,
+    borderWidth: 1, borderColor: T.border,
   },
   modalItem: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

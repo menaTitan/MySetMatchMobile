@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSport } from '../../context/SportContext';
-import { radii, spacing, typography } from '../../theme';
+import { spacing, typography } from '../../theme';
 
 interface Props {
   title?: string;
@@ -18,8 +18,8 @@ interface Props {
 }
 
 /**
- * Unified gradient hero header for primary screens.
- * Replaces the bespoke LinearGradient blocks scattered across Dashboard/Profile/etc.
+ * Pro-sports hero — flat near-black base with a subtle sport-tinted wash,
+ * a sharp accent slash for implied motion, no soft curves.
  */
 export default function HeroHeader({
   title,
@@ -29,7 +29,8 @@ export default function HeroHeader({
   children,
   variant = 'standard',
   align = 'left',
-  rounded = true,
+  /* `rounded` retained for back-compat — ignored in the dark redesign. */
+  rounded: _rounded = true,
   style,
 }: Props) {
   const { theme } = useSport();
@@ -43,24 +44,24 @@ export default function HeroHeader({
 
   return (
     <View style={style}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: theme.primary }} />
+      <SafeAreaView edges={['top']} style={{ backgroundColor: theme.pageBg }} />
       <LinearGradient
         colors={theme.heroGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[
-          styles.wrap,
-          { paddingTop: padTop, paddingBottom: padBottom },
-          rounded && styles.rounded,
-        ]}
+        style={[styles.wrap, { paddingTop: padTop, paddingBottom: padBottom }]}
       >
-        <View pointerEvents="none" style={[styles.orb, styles.orbA, { backgroundColor: theme.accentLight }]} />
-        <View pointerEvents="none" style={[styles.orb, styles.orbB, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />
+        {/* Diagonal accent slash — replaces the orb/blob ornaments. */}
+        <View pointerEvents="none" style={[styles.slash, { backgroundColor: theme.accent, opacity: 0.10 }]} />
+        <View pointerEvents="none" style={[styles.slashThin, { backgroundColor: theme.accent, opacity: 0.18 }]} />
+        <View pointerEvents="none" style={[styles.divider, { backgroundColor: theme.border }]} />
 
         {(title || right || eyebrow) && (
           <View style={[styles.row, align === 'center' && styles.rowCenter]}>
             <View style={{ flex: align === 'center' ? undefined : 1, paddingRight: right ? spacing.md : 0 }}>
-              {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+              {eyebrow ? (
+                <Text style={[styles.eyebrow, { color: theme.accent }]}>{eyebrow}</Text>
+              ) : null}
               {title ? (
                 <Text style={[
                   variant === 'tall' ? typography.display : typography.h1,
@@ -98,29 +99,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     overflow: 'hidden',
   },
-  rounded: {
-    borderBottomLeftRadius: radii.xxl,
-    borderBottomRightRadius: radii.xxl,
+  slash: {
+    position: 'absolute',
+    width: 600, height: 1.5,
+    top: '30%',
+    left: -100,
+    transform: [{ rotate: '-10deg' }],
   },
-  orb: { position: 'absolute', borderRadius: 999 },
-  orbA: { width: 240, height: 240, top: -80, right: -60, opacity: 0.9 },
-  orbB: { width: 160, height: 160, bottom: -40, left: -30 },
+  slashThin: {
+    position: 'absolute',
+    width: 600, height: 0.5,
+    top: '60%',
+    right: -100,
+    transform: [{ rotate: '-10deg' }],
+  },
+  divider: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+  },
 
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rowCenter: { justifyContent: 'center' },
 
   eyebrow: {
-    color: 'rgba(255,255,255,0.7)',
     fontSize: 11,
-    letterSpacing: 1.4,
+    letterSpacing: 1.6,
     fontFamily: typography.overline.fontFamily,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   title: { color: '#fff' },
   subtitle: {
     ...typography.small,
-    color: 'rgba(255,255,255,0.82)',
+    color: 'rgba(250,250,250,0.7)',
     marginTop: 4,
   },
 });
