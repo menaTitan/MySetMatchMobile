@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { authApi } from '../api';
 import type { Player } from '../types';
@@ -133,10 +133,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({ player: null, userId: null, roles: [], isLoading: false, isAuthenticated: false, isAdmin: false, isOrganizer: false });
   }
 
-  function updatePlayer(player: Player) {
+  // Memoized so consumers can include this in useEffect/useCallback deps
+  // without re-firing on every AuthProvider render. (Without this, the
+  // dashboard's useFocusEffect → load → updatePlayer cycle loops forever.)
+  const updatePlayer = useCallback((player: Player) => {
     setState((s) => ({ ...s, player }));
     SecureStore.setItemAsync('player', JSON.stringify(player));
-  }
+  }, []);
 
   return (
     <AuthContext.Provider value={{ ...state, login, logout, updatePlayer }}>
