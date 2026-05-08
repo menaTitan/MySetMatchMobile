@@ -13,7 +13,7 @@ import { radii, shadows, spacing, typography } from '../../theme';
 import { Avatar, Card, Chip, EmptyState, FeatureTileGrid, HeroHeader, LoadingView, PhotoLightbox, SectionHeader, StatTile } from '../../components/ui';
 
 export default function DashboardScreen({ navigation }: any) {
-  const { player } = useAuth();
+  const { player, updatePlayer } = useAuth();
   const { currentSport, theme } = useSport();
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,9 +24,13 @@ export default function DashboardScreen({ navigation }: any) {
     try {
       const { data: d } = await playerApi.dashboard(currentSport?.id);
       setData(d);
+      // The dashboard response carries the freshest player record (with the
+      // photo URL). Sync it into AuthContext so the cached login player gets
+      // refreshed without forcing a sign-out.
+      if (d.player) updatePlayer(d.player);
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
-  }, [currentSport?.id]);
+  }, [currentSport?.id, updatePlayer]);
 
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
