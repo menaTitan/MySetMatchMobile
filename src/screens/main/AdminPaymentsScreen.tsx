@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, Pressable, RefreshControl,
-  Modal, TextInput, KeyboardAvoidingView, Platform,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { adminApi, type AdminPayment } from '../../api';
 import { useSport } from '../../context/SportContext';
 import { useFetchData } from '../../hooks/useFetchData';
 import { radii, shadows, spacing, typography } from '../../theme';
-import { Button, Card, Chip, EmptyState, LoadingView, PageHeader, useToast } from '../../components/ui';
+import { BottomSheet, Button, Card, Chip, EmptyState, LoadingView, PageHeader, useToast } from '../../components/ui';
 
 export default function AdminPaymentsScreen() {
   const { theme } = useSport();
@@ -134,62 +134,45 @@ function RefundModal({
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.overlay}>
-          <View style={[styles.sheet, { backgroundColor: theme.cardBg }]}>
-            <View style={styles.handle} />
-            <View style={styles.sheetHeader}>
-              <Text style={[typography.h2, { color: theme.primary }]}>Process Refund</Text>
-              <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.divider }]}>
-                <Ionicons name="close" size={18} color={theme.textSecondary} />
-              </Pressable>
-            </View>
-
-            {payment ? (
-              <View style={{ paddingHorizontal: spacing.lg }}>
-                <Text style={[typography.small, { color: theme.textMuted }]}>
-                  Refund for {payment.playerName} · ${payment.amount.toFixed(2)}
-                </Text>
-              </View>
-            ) : null}
-
-            <View style={{ padding: spacing.lg, gap: spacing.sm }}>
-              <Text style={[typography.smallStrong, { color: theme.textSecondary }]}>Reason *</Text>
-              <TextInput
-                value={reason}
-                onChangeText={setReason}
-                placeholder="Tournament canceled, duplicate charge…"
-                placeholderTextColor={theme.textMuted}
-                style={[styles.input, { borderColor: theme.border, backgroundColor: theme.pageBg, color: theme.textPrimary }]}
-                multiline
-              />
-              <Text style={[typography.smallStrong, { color: theme.textSecondary, marginTop: 4 }]}>
-                Amount (leave blank to refund the full amount)
-              </Text>
-              <TextInput
-                value={amount}
-                onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
-                placeholder={payment ? `Max $${payment.amount.toFixed(2)}` : '0.00'}
-                placeholderTextColor={theme.textMuted}
-                keyboardType="decimal-pad"
-                style={[styles.input, { borderColor: theme.border, backgroundColor: theme.pageBg, color: theme.textPrimary, minHeight: 44 }]}
-              />
-              <Button
-                title="Issue Refund"
-                variant="danger"
-                size="lg"
-                fullWidth
-                disabled={!reason.trim()}
-                leftIcon="return-down-back-outline"
-                onPress={handleSubmit}
-                style={{ marginTop: spacing.sm }}
-              />
-            </View>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title="Process Refund"
+      subtitle={payment ? `Refund for ${payment.playerName} · $${payment.amount.toFixed(2)}` : undefined}
+    >
+      <View style={{ gap: spacing.sm }}>
+        <Text style={[typography.smallStrong, { color: theme.textSecondary }]}>Reason *</Text>
+        <TextInput
+          value={reason}
+          onChangeText={setReason}
+          placeholder="Tournament canceled, duplicate charge…"
+          placeholderTextColor={theme.textMuted}
+          style={[styles.input, { borderColor: theme.border, backgroundColor: theme.pageBg, color: theme.textPrimary }]}
+          multiline
+        />
+        <Text style={[typography.smallStrong, { color: theme.textSecondary, marginTop: 4 }]}>
+          Amount (leave blank to refund the full amount)
+        </Text>
+        <TextInput
+          value={amount}
+          onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ''))}
+          placeholder={payment ? `Max $${payment.amount.toFixed(2)}` : '0.00'}
+          placeholderTextColor={theme.textMuted}
+          keyboardType="decimal-pad"
+          style={[styles.input, { borderColor: theme.border, backgroundColor: theme.pageBg, color: theme.textPrimary, minHeight: 44 }]}
+        />
+        <Button
+          title="Issue Refund"
+          variant="danger"
+          size="lg"
+          fullWidth
+          disabled={!reason.trim()}
+          leftIcon="return-down-back-outline"
+          onPress={handleSubmit}
+          style={{ marginTop: spacing.sm }}
+        />
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -209,17 +192,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
 
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: {
-    borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl,
-    paddingBottom: spacing.xl,
-  },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', marginTop: 8 },
-  sheetHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm,
-  },
-  closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   input: {
     borderWidth: 1, borderRadius: radii.md,
     padding: 12, fontSize: 14, minHeight: 60,

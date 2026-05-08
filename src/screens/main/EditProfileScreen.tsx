@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Alert,
-  Pressable, Modal, FlatList, TextInput,
+  Pressable, FlatList, TextInput,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
 import { locationsApi, playerApi } from '../../api';
 import { radii, shadows, spacing, typography } from '../../theme';
-import { Avatar, Button, Card, Input, KeyboardAware, useToast } from '../../components/ui';
+import { Avatar, BottomSheet, Button, Card, HeroHeader, Input, KeyboardAware, useToast } from '../../components/ui';
 
 const HANDEDNESS_OPTIONS = ['Right', 'Left', 'Ambidextrous'];
 const PLAY_STYLE_OPTIONS = ['Offensive', 'Defensive', 'All-Round'];
@@ -96,30 +95,25 @@ export default function EditProfileScreen({ navigation }: any) {
       style={{ flex: 1, backgroundColor: theme.pageBg }}
       contentContainerStyle={{ paddingBottom: spacing.xxxl }}
     >
-        {/* Hero with avatar + change photo */}
-        <LinearGradient
-          colors={theme.heroGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
-        >
-          <View pointerEvents="none" style={[styles.orb, { backgroundColor: theme.accentLight }]} />
-          <Pressable onPress={handlePickPhoto} style={styles.avatarWrap}>
-            <View style={[styles.avatarRing, { borderColor: theme.accent, shadowColor: theme.accent }]}>
-              <Avatar name={player?.name} photoUrl={player?.profilePhotoUrl} size={96} />
-            </View>
-            <View style={[styles.cameraBadge, { backgroundColor: theme.accent }]}>
-              <Ionicons
-                name={uploading ? 'hourglass-outline' : 'camera'}
-                size={14}
-                color={theme.primary}
-              />
-            </View>
-          </Pressable>
-          <Text style={[typography.smallStrong, { color: 'rgba(255,255,255,0.85)', marginTop: spacing.sm }]}>
-            Tap to change photo
-          </Text>
-        </LinearGradient>
+        <HeroHeader variant="standard" align="center">
+          <View style={{ alignItems: 'center' }}>
+            <Pressable onPress={handlePickPhoto} style={styles.avatarWrap}>
+              <View style={[styles.avatarRing, { borderColor: theme.accent, shadowColor: theme.accent }]}>
+                <Avatar name={player?.name} photoUrl={player?.profilePhotoUrl} size={96} />
+              </View>
+              <View style={[styles.cameraBadge, { backgroundColor: theme.accent }]}>
+                <Ionicons
+                  name={uploading ? 'hourglass-outline' : 'camera'}
+                  size={14}
+                  color={theme.primary}
+                />
+              </View>
+            </Pressable>
+            <Text style={[typography.smallStrong, { color: 'rgba(255,255,255,0.85)', marginTop: spacing.sm }]}>
+              Tap to change photo
+            </Text>
+          </View>
+        </HeroHeader>
 
         <View style={{ padding: spacing.base, gap: spacing.base }}>
           <Card>
@@ -220,59 +214,39 @@ function PickerModal({
   const [query, setQuery] = useState('');
   const filtered = searchable ? items.filter(i => i.name.toLowerCase().includes(query.toLowerCase())) : items;
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={[styles.sheet, { backgroundColor: theme.cardBg }]}>
-          <View style={styles.handle} />
-          <View style={styles.sheetHeader}>
-            <Text style={[typography.h2, { color: theme.primary }]}>{title}</Text>
-            <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.divider }]}>
-              <Ionicons name="close" size={18} color={theme.textSecondary} />
-            </Pressable>
-          </View>
-          {searchable ? (
-            <View style={[styles.search, { backgroundColor: theme.pageBg, borderColor: theme.border }]}>
-              <Ionicons name="search" size={16} color={theme.textMuted} />
-              <TextInput
-                placeholder="Search…"
-                placeholderTextColor={theme.textMuted}
-                value={query}
-                onChangeText={setQuery}
-                style={{ flex: 1, fontSize: 14, color: theme.textPrimary }}
-              />
-            </View>
-          ) : null}
-          <FlatList
-            data={filtered}
-            keyExtractor={(i) => i.id}
-            renderItem={({ item }) => (
-              <Pressable
-                style={({ pressed }) => [styles.item, pressed && { backgroundColor: theme.pageBg }]}
-                onPress={() => { onSelect(item); setQuery(''); }}
-              >
-                <Text style={{ flex: 1, fontSize: 15, color: theme.textPrimary }}>{item.name}</Text>
-                <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
-              </Pressable>
-            )}
-            ItemSeparatorComponent={() => <View style={[styles.sep, { backgroundColor: theme.divider }]} />}
+    <BottomSheet visible={visible} onClose={onClose} title={title} scrollable={false}>
+      {searchable ? (
+        <View style={[styles.search, { backgroundColor: theme.pageBg, borderColor: theme.border }]}>
+          <Ionicons name="search" size={16} color={theme.textMuted} />
+          <TextInput
+            placeholder="Search…"
+            placeholderTextColor={theme.textMuted}
+            value={query}
+            onChangeText={setQuery}
+            style={{ flex: 1, fontSize: 14, color: theme.textPrimary }}
           />
         </View>
-      </View>
-    </Modal>
+      ) : null}
+      <FlatList
+        data={filtered}
+        keyExtractor={(i) => i.id}
+        style={{ maxHeight: 480 }}
+        renderItem={({ item }) => (
+          <Pressable
+            style={({ pressed }) => [styles.item, pressed && { backgroundColor: theme.pageBg }]}
+            onPress={() => { onSelect(item); setQuery(''); }}
+          >
+            <Text style={{ flex: 1, fontSize: 15, color: theme.textPrimary }}>{item.name}</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+          </Pressable>
+        )}
+        ItemSeparatorComponent={() => <View style={[styles.sep, { backgroundColor: theme.divider }]} />}
+      />
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    alignItems: 'center',
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    borderBottomLeftRadius: radii.xxl,
-    borderBottomRightRadius: radii.xxl,
-    overflow: 'hidden',
-  },
-  orb: { position: 'absolute', width: 260, height: 260, borderRadius: 130, top: -80, right: -60, opacity: 0.7 },
   avatarWrap: { position: 'relative' },
   avatarRing: {
     padding: 3, borderRadius: 56, borderWidth: 3,
@@ -292,17 +266,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, minHeight: 50,
   },
 
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: {
-    borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl,
-    maxHeight: '75%', paddingBottom: spacing.lg,
-  },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', marginTop: 8 },
-  sheetHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm,
-  },
-  closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   search: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: spacing.lg, marginBottom: spacing.sm,

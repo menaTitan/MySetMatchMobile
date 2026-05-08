@@ -9,7 +9,7 @@ export interface ChatParticipantDto {
 export interface ChatRoomDto {
   id: string;
   name: string;
-  type: 'Direct' | 'Group' | 'Tournament';
+  type: 'Direct' | 'Group' | 'Tournament' | 'Support';
   tournamentId?: string;
   tournamentName?: string;
   participants: ChatParticipantDto[];
@@ -26,6 +26,13 @@ export interface ChatMessageDto {
   isEdited?: boolean;
   editedDate?: string;
 }
+export interface SuggestedUser {
+  userId: string;
+  userName: string;
+  fullName?: string;
+  profilePhotoUrl?: string;
+  isOnline?: boolean;
+}
 
 export const chatApi = {
   rooms: () => api.get<ChatRoomDto[]>('/mobile/chat/rooms'),
@@ -36,6 +43,20 @@ export const chatApi = {
   markRead: (roomId: string) => api.post(`/mobile/chat/${roomId}/read`),
   createDirect: (otherUserId: string) =>
     api.post<{ id: string; created: boolean }>('/mobile/chat/direct', { otherUserId }),
+  createGroup: (data: { name: string; participantUserIds: string[] }) =>
+    api.post<{ id: string }>('/mobile/chat/group', data),
+  createTournamentChat: (tournamentId: string) =>
+    api.post<{ id: string }>(`/mobile/chat/tournament/${tournamentId}`),
+  getOrCreateSupport: () =>
+    api.post<{ id: string }>('/mobile/chat/support'),
+  addParticipants: (roomId: string, userIds: string[]) =>
+    api.post(`/mobile/chat/${roomId}/participants`, { userIds }),
+  removeParticipant: (roomId: string, userId: string) =>
+    api.delete(`/mobile/chat/${roomId}/participants/${userId}`),
   searchUsers: (query: string) =>
     api.get<ChatParticipantDto[]>('/mobile/chat/users/search', { params: { query } }),
+  topUsers: () =>
+    api.get<SuggestedUser[]>('/mobile/chat/users/top'),
+  unreadCount: () =>
+    api.get<{ count: number }>('/mobile/chat/unread-count'),
 };

@@ -1,34 +1,92 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSport } from '../../context/SportContext';
 import { radii, spacing, typography } from '../../theme';
 
+interface TapProps {
+  onPress: () => void;
+  placeholder?: string;
+  value?: never;
+  onChangeText?: never;
+  autoFocus?: never;
+  surface?: 'header' | 'page';
+}
+
+interface InputProps {
+  onPress?: never;
+  placeholder?: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  autoFocus?: boolean;
+  onSubmitEditing?: () => void;
+  surface?: 'header' | 'page';
+}
+
+type Props = TapProps | InputProps;
+
 /**
- * Tap-target "search" bar used in page headers. It's not an input — tapping it
- * opens the full SearchScreen so the keyboard can take the whole viewport.
+ * Two modes:
+ * - Tap-target (default in headers): renders a Pressable that opens SearchScreen.
+ *   Use when only `onPress` is given.
+ * - Real input (used inside content): renders a TextInput. Use when `value`
+ *   and `onChangeText` are given.
+ *
+ * `surface` controls colors: "header" (white-on-gradient) or "page" (dark-on-card).
  */
-export default function SearchBar({
-  onPress, placeholder = 'Search players, tournaments, groups…',
-}: { onPress: () => void; placeholder?: string }) {
+export default function SearchBar(props: Props) {
   const { theme } = useSport();
+  const placeholder = props.placeholder ?? 'Search players, tournaments, groups…';
+  const surface = props.surface ?? (props.onPress ? 'header' : 'page');
+
+  const isHeader = surface === 'header';
+  const wrapStyle = isHeader
+    ? { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.22)' }
+    : { backgroundColor: theme.cardBg, borderColor: theme.border };
+  const iconColor = isHeader ? 'rgba(255,255,255,0.85)' : theme.textMuted;
+  const textColor = isHeader ? 'rgba(255,255,255,0.95)' : theme.textPrimary;
+  const placeholderColor = isHeader ? 'rgba(255,255,255,0.7)' : theme.textMuted;
+
+  // Input mode
+  if ('onChangeText' in props && props.onChangeText) {
+    return (
+      <View style={[styles.wrap, wrapStyle]}>
+        <Ionicons name="search" size={16} color={iconColor} />
+        <TextInput
+          value={props.value}
+          onChangeText={props.onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={placeholderColor}
+          autoFocus={props.autoFocus}
+          onSubmitEditing={props.onSubmitEditing}
+          style={[typography.smallStrong, { flex: 1, color: textColor, padding: 0 }]}
+          returnKeyType="search"
+        />
+        {props.value ? (
+          <Pressable onPress={() => props.onChangeText('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={16} color={iconColor} />
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  }
+
+  // Tap-target mode
   return (
     <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.wrap,
-        { backgroundColor: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.22)' },
-        pressed && { opacity: 0.8 },
-      ]}
+      onPress={props.onPress}
+      style={({ pressed }) => [styles.wrap, wrapStyle, pressed && { opacity: 0.8 }]}
     >
-      <Ionicons name="search" size={16} color="rgba(255,255,255,0.85)" />
-      <Text style={[typography.smallStrong, { color: 'rgba(255,255,255,0.75)', flex: 1 }]} numberOfLines={1}>
+      <Ionicons name="search" size={16} color={iconColor} />
+      <Text style={[typography.smallStrong, { color: placeholderColor, flex: 1 }]} numberOfLines={1}>
         {placeholder}
       </Text>
-      <View style={[styles.hint, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
-        <Ionicons name="sparkles" size={10} color={theme.accent} />
-        <Text style={styles.hintText}>ALL</Text>
-      </View>
+      {isHeader ? (
+        <View style={[styles.hint, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
+          <Ionicons name="sparkles" size={10} color={theme.accent} />
+          <Text style={styles.hintText}>ALL</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }

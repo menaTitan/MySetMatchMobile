@@ -43,8 +43,12 @@ export default function AdminHomeScreen({ navigation }: any) {
         {/* Actions — modern tile grid */}
         <FeatureTileGrid
           tiles={[
-            { key: 'users',    icon: 'people',  label: 'Users',    hint: 'Search, suspend, assign roles', tint: 'blue',   onPress: () => navigation.navigate('AdminUsers') },
-            { key: 'payments', icon: 'card',    label: 'Payments', hint: 'View payments & refunds',       tint: 'accent', onPress: () => navigation.navigate('AdminPayments') },
+            { key: 'users',     icon: 'people',          label: 'Users',       hint: 'Search, suspend, edit, roles',  tint: 'blue',   onPress: () => navigation.navigate('AdminUsers') },
+            { key: 'payments',  icon: 'card',            label: 'Payments',    hint: 'View payments & refunds',        tint: 'accent', onPress: () => navigation.navigate('AdminPayments') },
+            { key: 'tourns',    icon: 'trophy',          label: 'Tournaments', hint: 'All tournaments overview',       tint: 'green',  onPress: () => navigation.navigate('AdminTournaments') },
+            { key: 'analytics', icon: 'bar-chart',       label: 'Analytics',   hint: 'Platform usage & revenue',       tint: 'red',    onPress: () => navigation.navigate('AdminAnalytics') },
+            { key: 'locations', icon: 'location',        label: 'Locations',   hint: 'Countries, regions, cities',     tint: 'blue',   onPress: () => navigation.navigate('AdminLocations') },
+            { key: 'debug',     icon: 'construct',       label: 'Debug & QA',  hint: 'Recalc, seed, test data',        tint: 'accent', onPress: () => navigation.navigate('AdminDebug') },
           ]}
         />
       </ScrollView>

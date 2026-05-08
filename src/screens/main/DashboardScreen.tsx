@@ -1,17 +1,16 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { playerApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
 import type { Dashboard } from '../../types';
-import SportPickerBar from '../../components/SportPickerBar';
+import SportDropdown from '../../components/SportDropdown';
+import HomeSearch from '../../components/HomeSearch';
 import MatchCard from '../../components/MatchCard';
 import { radii, shadows, spacing, typography } from '../../theme';
-import { Card, Chip, EmptyState, FeatureTileGrid, LoadingView, SearchBar, SectionHeader, StatTile } from '../../components/ui';
+import { Card, Chip, EmptyState, FeatureTileGrid, HeroHeader, LoadingView, SectionHeader, StatTile } from '../../components/ui';
 
 export default function DashboardScreen({ navigation }: any) {
   const { player } = useAuth();
@@ -35,10 +34,22 @@ export default function DashboardScreen({ navigation }: any) {
   const firstName = player?.name?.split(' ')[0] ?? 'Player';
   const rating = data?.displayRating ?? 1500;
 
+  const openPlayer = (id: string) => {
+    const root = navigation.getParent()?.getParent() ?? navigation.getParent() ?? navigation;
+    root.navigate('PlayerProfile', { playerId: id });
+  };
+  const openTournament = (id: string) => {
+    navigation.navigate('Play', { screen: 'TournamentDetail', params: { id } });
+  };
+  const openGroup = (id: string, name: string) => {
+    navigation.navigate('Community', { screen: 'GroupDetail', params: { groupId: id, groupName: name } });
+  };
+  const openMarket = () => {
+    navigation.navigate('Market');
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: theme.primary }} />
-
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: spacing.xxl }}
@@ -52,30 +63,15 @@ export default function DashboardScreen({ navigation }: any) {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero header */}
-        <LinearGradient
-          colors={theme.heroGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
+        <HeroHeader
+          variant="standard"
+          right={<SportDropdown variant="onPrimary" uppercase />}
         >
-          <View pointerEvents="none" style={[styles.orb, styles.orbA, { backgroundColor: theme.accentLight }]} />
-          <View pointerEvents="none" style={[styles.orb, styles.orbB, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />
-
-          <View style={styles.heroTopRow}>
-            <View>
-              <Text style={styles.greeting}>Welcome back,</Text>
-              <Text style={styles.name}>{firstName} 👋</Text>
-            </View>
-            <View style={styles.sportBadge}>
-              <Ionicons name="trophy" size={11} color={theme.accent} />
-              <Text style={styles.sportBadgeText}>
-                {(currentSport?.name ?? 'All Sports').toUpperCase()}
-              </Text>
-            </View>
+          <View>
+            <Text style={styles.greeting}>Welcome back,</Text>
+            <Text style={styles.name}>{firstName} 👋</Text>
           </View>
 
-          {/* Rating hero */}
           <View style={styles.ratingHero}>
             <Text style={[styles.ratingLabel, { color: 'rgba(255,255,255,0.65)' }]}>
               {currentSport?.name ?? 'Global'} Rating
@@ -96,25 +92,28 @@ export default function DashboardScreen({ navigation }: any) {
             </View>
           </View>
 
-          {/* Search */}
-          <View style={{ marginTop: spacing.base }}>
-            <SearchBar onPress={() => navigation.navigate('Search')} placeholder="Search players, tournaments…" />
+          <View style={{ marginTop: spacing.base, zIndex: 30 }}>
+            <HomeSearch
+              onPlayer={openPlayer}
+              onTournament={openTournament}
+              onGroup={openGroup}
+              onListing={openMarket}
+            />
           </View>
-        </LinearGradient>
+        </HeroHeader>
 
-        {/* Quick actions — modern web-style feature tile grid */}
+        {/* Quick actions — single horizontal row of compact tiles */}
         <View style={styles.quickWrap}>
           <FeatureTileGrid
+            variant="compact"
             tiles={[
-              { key: 'score',     icon: 'flash-outline',  label: 'Enter Score', hint: 'Submit match results',  tint: 'accent', onPress: () => navigation.navigate('Play', { screen: 'PlayHome' }) },
-              { key: 'live',      icon: 'radio-outline',  label: 'Live Scores', hint: 'Watch matches in progress', tint: 'red', onPress: () => navigation.navigate('Play', { screen: 'PlayHome' }) },
-              { key: 'find',      icon: 'people-outline', label: 'Find Players', hint: 'Search across sports', tint: 'blue',  onPress: () => navigation.navigate('Search') },
-              { key: 'post',      icon: 'create-outline', label: 'New Post',     hint: 'Share with the community', tint: 'green', onPress: () => navigation.navigate('Community', { screen: 'CommunityHome' }) },
+              { key: 'score', icon: 'flash-outline',  label: 'Enter Score',  tint: 'accent', onPress: () => navigation.navigate('Play', { screen: 'PlayHome' }) },
+              { key: 'live',  icon: 'radio-outline',  label: 'Live',         tint: 'red',    onPress: () => navigation.navigate('Play', { screen: 'PlayHome' }) },
+              { key: 'find',  icon: 'people-outline', label: 'Find Players', tint: 'blue',   onPress: () => navigation.navigate('Play', { screen: 'PlayHome' }) },
+              { key: 'post',  icon: 'create-outline', label: 'New Post',     tint: 'green',  onPress: () => navigation.navigate('Community', { screen: 'CommunityHome' }) },
             ]}
           />
         </View>
-
-        <SportPickerBar />
 
         {/* Stat tiles */}
         <View style={styles.statsGrid}>
@@ -270,19 +269,6 @@ export default function DashboardScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.base,
-    paddingBottom: spacing.xl + 6,
-    borderBottomLeftRadius: radii.xxl,
-    borderBottomRightRadius: radii.xxl,
-    overflow: 'hidden',
-  },
-  orb: { position: 'absolute', borderRadius: 999 },
-  orbA: { width: 240, height: 240, top: -80, right: -60, opacity: 0.9 },
-  orbB: { width: 160, height: 160, bottom: -40, left: -30 },
-
-  heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   greeting: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 13, letterSpacing: 0.2,
@@ -294,19 +280,6 @@ const styles = StyleSheet.create({
     marginTop: 2, letterSpacing: -0.5,
     fontFamily: typography.h1.fontFamily,
   },
-  sportBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: radii.pill,
-  },
-  sportBadgeText: {
-    color: '#fff', fontSize: 9.5,
-    fontWeight: '800', letterSpacing: 0.8,
-    fontFamily: typography.overline.fontFamily,
-  },
-
   ratingHero: { alignItems: 'center', marginTop: spacing.lg },
   ratingLabel: {
     ...typography.caption, fontSize: 11, letterSpacing: 1.2,

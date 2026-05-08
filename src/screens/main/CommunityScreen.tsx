@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl, Alert,
-  Modal, KeyboardAvoidingView, Platform, Pressable,
+  Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +15,7 @@ import CommentSheet from '../../components/CommentSheet';
 import EditPostSheet from '../../components/EditPostSheet';
 import { useAuth } from '../../context/AuthContext';
 import { radii, shadows, spacing, typography } from '../../theme';
-import { Avatar, Button, Card, Chip, EmptyState, Input, LoadingView, PageHeader } from '../../components/ui';
+import { Avatar, BottomSheet, Button, Card, Chip, EmptyState, HeroHeader, Input, LoadingView, SegmentedTabs } from '../../components/ui';
 
 type Tab = 'public' | 'groups';
 
@@ -25,10 +25,10 @@ export default function CommunityScreen({ navigation }: any) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.pageBg }]}>
-      <PageHeader
+      <HeroHeader
+        variant="compact"
         title="Community"
         subtitle="Connect with players & share updates"
-        compact
         right={
           <Pressable
             onPress={() => navigation.navigate('ChatList')}
@@ -44,33 +44,19 @@ export default function CommunityScreen({ navigation }: any) {
         }
       />
 
-      <View style={[styles.tabBar, { backgroundColor: theme.cardBg, borderBottomColor: theme.divider }]}>
-        <TabBtn icon="globe-outline" label="Public" active={tab === 'public'} onPress={() => setTab('public')} />
-        <TabBtn icon="lock-closed-outline" label="My Groups" active={tab === 'groups'} onPress={() => setTab('groups')} />
-      </View>
+      <SegmentedTabs
+        variant="underline"
+        scrollable={false}
+        value={tab}
+        onChange={(k) => setTab(k as Tab)}
+        tabs={[
+          { key: 'public', label: 'Public', icon: 'globe-outline' },
+          { key: 'groups', label: 'My Groups', icon: 'lock-closed-outline' },
+        ]}
+      />
 
       {tab === 'public' ? <PublicFeed /> : <MyGroups navigation={navigation} />}
     </View>
-  );
-}
-
-function TabBtn({
-  icon, label, active, onPress,
-}: { icon: any; label: string; active: boolean; onPress: () => void }) {
-  const { theme } = useSport();
-  return (
-    <Pressable style={styles.tabBtn} onPress={onPress}>
-      <View style={[
-        styles.tabInner,
-        active && { backgroundColor: theme.featureBg },
-      ]}>
-        <Ionicons name={icon} size={15} color={active ? theme.primary : theme.textMuted} />
-        <Text style={[
-          typography.smallStrong,
-          { color: active ? theme.primary : theme.textMuted },
-        ]}>{label}</Text>
-      </View>
-    </Pressable>
   );
 }
 
@@ -313,66 +299,39 @@ function MyGroups({ navigation }: any) {
         <Text style={[typography.smallStrong, { color: theme.primary, fontWeight: '800' }]}>New Group</Text>
       </Pressable>
 
-      <Modal visible={createModal} animationType="slide" transparent onRequestClose={() => setCreateModal(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.modalOverlay}>
-            <View style={[styles.sheet, { backgroundColor: theme.cardBg }]}>
-              <View style={styles.handle} />
-              <View style={styles.sheetHeader}>
-                <Text style={[typography.h2, { color: theme.primary }]}>Create Group</Text>
-                <Pressable onPress={() => setCreateModal(false)} style={[styles.closeBtn, { backgroundColor: theme.divider }]}>
-                  <Ionicons name="close" size={18} color={theme.textSecondary} />
-                </Pressable>
-              </View>
-              <View style={{ padding: spacing.lg }}>
-                <Input
-                  label="Group name *"
-                  leftIcon="people-outline"
-                  placeholder="e.g. Brentwood TT Club"
-                  value={groupName}
-                  onChangeText={setGroupName}
-                />
-                <Input
-                  label="Description (optional)"
-                  placeholder="What is this group about?"
-                  value={groupDesc}
-                  onChangeText={setGroupDesc}
-                  multiline
-                  numberOfLines={3}
-                />
-                <Button
-                  title="Create Group"
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  loading={creating}
-                  leftIcon="add-circle-outline"
-                  onPress={createGroup}
-                  style={{ marginTop: spacing.sm }}
-                />
-              </View>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <BottomSheet visible={createModal} onClose={() => setCreateModal(false)} title="Create Group">
+        <Input
+          label="Group name *"
+          leftIcon="people-outline"
+          placeholder="e.g. Brentwood TT Club"
+          value={groupName}
+          onChangeText={setGroupName}
+        />
+        <Input
+          label="Description (optional)"
+          placeholder="What is this group about?"
+          value={groupDesc}
+          onChangeText={setGroupDesc}
+          multiline
+          numberOfLines={3}
+        />
+        <Button
+          title="Create Group"
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={creating}
+          leftIcon="add-circle-outline"
+          onPress={createGroup}
+          style={{ marginTop: spacing.sm }}
+        />
+      </BottomSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  tabBar: {
-    flexDirection: 'row',
-    padding: spacing.xs + 2,
-    gap: spacing.xs,
-    borderBottomWidth: 1,
-  },
-  tabBtn: { flex: 1 },
-  tabInner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 10,
-    borderRadius: radii.md,
-  },
 
   groupRow: {
     flexDirection: 'row', alignItems: 'center',
@@ -391,23 +350,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18, paddingVertical: 12,
     borderRadius: radii.pill,
     shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8,
-  },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: {
-    borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl,
-    maxHeight: '75%', paddingBottom: spacing.lg,
-  },
-  handle: {
-    alignSelf: 'center', width: 40, height: 4, borderRadius: 2,
-    backgroundColor: '#E2E8F0', marginTop: 8,
-  },
-  sheetHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm,
-  },
-  closeBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
   },
   chatBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

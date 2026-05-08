@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, Pressable,
-  TextInput, Alert, RefreshControl,
+  Alert, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { adminApi, type AdminUser } from '../../api';
 import { useSport } from '../../context/SportContext';
 import { radii, shadows, spacing, typography } from '../../theme';
-import { Avatar, Card, Chip, EmptyState, LoadingView, PageHeader, useToast } from '../../components/ui';
+import { Avatar, Card, Chip, EmptyState, LoadingView, PageHeader, SearchBar, useToast } from '../../components/ui';
 
 type ActionSheetState = { user: AdminUser } | null;
 
-export default function AdminUsersScreen() {
+export default function AdminUsersScreen({ navigation }: any) {
   const { theme } = useSport();
   const toast = useToast();
   const [query, setQuery] = useState('');
@@ -77,23 +77,8 @@ export default function AdminUsersScreen() {
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
       <PageHeader title="Users" subtitle="Search, suspend, assign roles" compact />
 
-      <View style={[styles.searchBar, { backgroundColor: theme.cardBg, borderBottomColor: theme.divider }]}>
-        <View style={[styles.searchBox, { backgroundColor: theme.pageBg, borderColor: theme.border }]}>
-          <Ionicons name="search" size={16} color={theme.textMuted} />
-          <TextInput
-            placeholder="Search by name, email, username…"
-            placeholderTextColor={theme.textMuted}
-            value={query}
-            onChangeText={setQuery}
-            style={{ flex: 1, fontSize: 14, color: theme.textPrimary }}
-            underlineColorAndroid="transparent"
-          />
-          {query ? (
-            <Pressable onPress={() => setQuery('')} hitSlop={6}>
-              <Ionicons name="close-circle" size={16} color={theme.textMuted} />
-            </Pressable>
-          ) : null}
-        </View>
+      <View style={{ padding: spacing.sm, backgroundColor: theme.cardBg, borderBottomWidth: 1, borderBottomColor: theme.divider }}>
+        <SearchBar value={query} onChangeText={setQuery} placeholder="Search by name, email, username…" />
       </View>
 
       {loading ? <LoadingView /> : (
@@ -105,6 +90,7 @@ export default function AdminUsersScreen() {
               user={item}
               onRoleToggle={(r) => toggleRole(item, r)}
               onSuspendToggle={() => suspend(item)}
+              onPress={() => navigation.navigate('AdminEditUser', { userId: item.id })}
             />
           )}
           refreshControl={
@@ -119,15 +105,16 @@ export default function AdminUsersScreen() {
 }
 
 function UserRow({
-  user, onRoleToggle, onSuspendToggle,
+  user, onRoleToggle, onSuspendToggle, onPress,
 }: {
   user: AdminUser;
   onRoleToggle: (role: 'Admin' | 'Organizer') => void;
   onSuspendToggle: () => void;
+  onPress?: () => void;
 }) {
   const { theme } = useSport();
   return (
-    <Card padding={0}>
+    <Card padding={0} onPress={onPress}>
       <View style={styles.userRow}>
         <Avatar name={user.fullName ?? user.userName} photoUrl={user.profilePhotoUrl} size={42} />
         <View style={{ flex: 1 }}>
@@ -206,12 +193,6 @@ function RoleBtn({ label, active, onPress }: { label: string; active: boolean; o
 }
 
 const styles = StyleSheet.create({
-  searchBar: { padding: spacing.sm, borderBottomWidth: 1 },
-  searchBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 12, minHeight: 40,
-    borderRadius: radii.md, borderWidth: 1,
-  },
   userRow: {
     flexDirection: 'row', alignItems: 'center',
     gap: spacing.sm + 2,

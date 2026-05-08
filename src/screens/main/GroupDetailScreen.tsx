@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { View, FlatList, RefreshControl, Alert } from 'react-native';
+import { View, FlatList, RefreshControl, Alert, Pressable, Text, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { privateGroupsApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
@@ -9,13 +10,14 @@ import PostCard from '../../components/PostCard';
 import Composer from '../../components/Composer';
 import CommentSheet from '../../components/CommentSheet';
 import EditPostSheet from '../../components/EditPostSheet';
-import { spacing } from '../../theme';
-import { EmptyState, LoadingView } from '../../components/ui';
+import { radii, spacing, typography } from '../../theme';
+import { EmptyState, LoadingView, useToast } from '../../components/ui';
 
-export default function GroupDetailScreen({ route }: any) {
+export default function GroupDetailScreen({ route, navigation }: any) {
   const { groupId, groupName } = route.params;
   const { theme } = useSport();
   const { player: me } = useAuth();
+  const toast = useToast();
   const [posts, setPosts] = useState<PrivatePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,8 +81,49 @@ export default function GroupDetailScreen({ route }: any) {
     ]);
   }
 
+  async function rename() {
+    Alert.prompt?.('Rename group', 'New name', async (newName) => {
+      if (!newName?.trim()) return;
+      try { await privateGroupsApi.rename(groupId, newName.trim()); toast('Renamed', 'success'); navigation.setParams?.({ groupName: newName.trim() }); }
+      catch {}
+    });
+  }
+
+  async function deleteGroup() {
+    Alert.alert('Delete group', 'This will remove all posts and members. Continue?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await privateGroupsApi.deleteGroup(groupId); toast('Deleted', 'success'); navigation.goBack(); }
+        catch {}
+      } },
+    ]);
+  }
+
+  async function leave() {
+    try { await privateGroupsApi.leave(groupId); navigation.goBack(); } catch {}
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
+      <View style={[styles.toolRow, { borderBottomColor: theme.divider, backgroundColor: theme.cardBg }]}>
+        <Pressable onPress={() => navigation.navigate('GroupMembers', { groupId, name: groupName })} style={styles.toolBtn}>
+          <Ionicons name="people-outline" size={14} color={theme.primary} />
+          <Text style={[typography.caption, { color: theme.primary, fontWeight: '700' }]}>MEMBERS</Text>
+        </Pressable>
+        <Pressable onPress={rename} style={styles.toolBtn}>
+          <Ionicons name="create-outline" size={14} color={theme.primary} />
+          <Text style={[typography.caption, { color: theme.primary, fontWeight: '700' }]}>RENAME</Text>
+        </Pressable>
+        <Pressable onPress={leave} style={styles.toolBtn}>
+          <Ionicons name="exit-outline" size={14} color={theme.warning} />
+          <Text style={[typography.caption, { color: theme.warning, fontWeight: '700' }]}>LEAVE</Text>
+        </Pressable>
+        <Pressable onPress={deleteGroup} style={styles.toolBtn}>
+          <Ionicons name="trash-outline" size={14} color={theme.dangerRed} />
+          <Text style={[typography.caption, { color: theme.dangerRed, fontWeight: '700' }]}>DELETE</Text>
+        </Pressable>
+      </View>
+
       <Composer
         value={newPost}
         onChange={setNewPost}
@@ -133,3 +176,11 @@ export default function GroupDetailScreen({ route }: any) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  toolRow: { flexDirection: 'row', borderBottomWidth: 1 },
+  toolBtn: {
+    flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4,
+    paddingVertical: spacing.sm + 2,
+  },
+});

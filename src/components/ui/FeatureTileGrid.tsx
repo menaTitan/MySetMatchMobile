@@ -29,67 +29,104 @@ export interface Tile {
 
 interface Props {
   tiles: Tile[];
-  /** Tiles per row. Defaults to 2. */
+  /** Tiles per row. Defaults to 2 (standard) or 4 (compact). */
   columns?: number;
+  /**
+   * "standard": tall card, icon + label + hint (default — Profile/Admin home).
+   * "compact":  square tile, centered icon + label, no hint (Dashboard quick actions).
+   */
+  variant?: 'standard' | 'compact';
 }
 
 /**
- * Modern 2-up tile grid mirroring the website's `.feature-card` row —
- * gradient icon circle + label + optional one-line hint + badge.
- * Used for Dashboard quick actions, Profile actions, Admin home, Play hub.
+ * Modern tile grid — gradient icon + label + optional hint + badge.
+ *
+ * - `standard`: 2-up cards with hints (Profile, Admin home)
+ * - `compact`: 4-up centered tiles, no hint (Dashboard quick actions row)
  */
-export default function FeatureTileGrid({ tiles, columns = 2 }: Props) {
+export default function FeatureTileGrid({ tiles, columns, variant = 'standard' }: Props) {
+  const cols = columns ?? (variant === 'compact' ? 4 : 2);
   return (
     <View style={[styles.grid, { gap: spacing.sm }]}>
       {tiles.map((t) => (
-        <View key={t.key} style={{ width: `${100 / columns}%`, padding: spacing.xs }}>
-          <FeatureTile tile={t} />
+        <View key={t.key} style={{ width: `${100 / cols}%`, padding: spacing.xs }}>
+          <FeatureTile tile={t} variant={variant} />
         </View>
       ))}
     </View>
   );
 }
 
-function FeatureTile({ tile }: { tile: Tile }) {
+function FeatureTile({ tile, variant }: { tile: Tile; variant: 'standard' | 'compact' }) {
   const { theme } = useSport();
   const colors: readonly [string, string] =
     tile.tint === 'sport' || !tile.tint ? theme.headerGradient : GRADIENTS[tile.tint];
+
+  const isCompact = variant === 'compact';
 
   return (
     <Pressable
       onPress={tile.onPress}
       style={({ pressed }) => [
-        styles.tile,
+        isCompact ? styles.tileCompact : styles.tile,
         { backgroundColor: theme.cardBg },
         shadows.card,
         pressed && { transform: [{ scale: 0.97 }] },
       ]}
     >
-      <View style={styles.iconRow}>
-        <LinearGradient
-          colors={colors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.iconBox}
-        >
-          <Ionicons name={tile.icon} size={22} color="#fff" />
-        </LinearGradient>
-        {tile.badge ? (
-          <View style={[styles.badge, { backgroundColor: theme.accent }]}>
-            <Text style={[typography.caption, { color: theme.primary, fontWeight: '800', fontSize: 10 }]}>
-              {tile.badge}
-            </Text>
+      {isCompact ? (
+        <>
+          <LinearGradient
+            colors={colors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.iconBoxCompact}
+          >
+            <Ionicons name={tile.icon} size={20} color="#fff" />
+          </LinearGradient>
+          <Text
+            style={[typography.caption, { color: theme.textPrimary, fontWeight: '700', marginTop: spacing.xs + 2, textAlign: 'center' }]}
+            numberOfLines={2}
+          >
+            {tile.label}
+          </Text>
+          {tile.badge ? (
+            <View style={[styles.badgeAbsolute, { backgroundColor: theme.accent }]}>
+              <Text style={[typography.caption, { color: theme.primary, fontWeight: '800', fontSize: 10 }]}>
+                {tile.badge}
+              </Text>
+            </View>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <View style={styles.iconRow}>
+            <LinearGradient
+              colors={colors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.iconBox}
+            >
+              <Ionicons name={tile.icon} size={22} color="#fff" />
+            </LinearGradient>
+            {tile.badge ? (
+              <View style={[styles.badge, { backgroundColor: theme.accent }]}>
+                <Text style={[typography.caption, { color: theme.primary, fontWeight: '800', fontSize: 10 }]}>
+                  {tile.badge}
+                </Text>
+              </View>
+            ) : null}
           </View>
-        ) : null}
-      </View>
-      <Text style={[typography.bodyStrong, { color: theme.textPrimary, marginTop: spacing.sm }]} numberOfLines={1}>
-        {tile.label}
-      </Text>
-      {tile.hint ? (
-        <Text style={[typography.caption, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={2}>
-          {tile.hint}
-        </Text>
-      ) : null}
+          <Text style={[typography.bodyStrong, { color: theme.textPrimary, marginTop: spacing.sm }]} numberOfLines={1}>
+            {tile.label}
+          </Text>
+          {tile.hint ? (
+            <Text style={[typography.caption, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={2}>
+              {tile.hint}
+            </Text>
+          ) : null}
+        </>
+      )}
     </Pressable>
   );
 }
@@ -106,14 +143,34 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     minHeight: 110,
   },
+  tileCompact: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radii.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 92,
+  },
   iconRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   iconBox: {
     width: 44, height: 44, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  iconBoxCompact: {
+    width: 40, height: 40, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
   },
   badge: {
     paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: radii.pill,
     minWidth: 22, alignItems: 'center',
+  },
+  badgeAbsolute: {
+    position: 'absolute',
+    top: 6, right: 6,
+    paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: radii.pill,
+    minWidth: 18, alignItems: 'center',
   },
 });

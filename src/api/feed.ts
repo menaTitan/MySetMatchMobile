@@ -8,11 +8,38 @@ const REACTION_INT: Record<ReactionKind, number> = { Like: 1, Love: 2, Celebrate
 export const toReactionInt = (r: ReactionKind | number) =>
   typeof r === 'number' ? r : REACTION_INT[r];
 
+export type PostVisibility = 'Public' | 'Followers' | 'Sport' | 'Private';
+
+export interface ReactionUser {
+  userId: string;
+  userName: string;
+  fullName?: string;
+  profilePhotoUrl?: string;
+  reactionType: number;
+}
+
+export interface ReactionsBreakdown {
+  total: number;
+  byType: { type: number; label: string; count: number }[];
+  users: ReactionUser[];
+}
+
+export interface MentionUser {
+  userId: string;
+  userName: string;
+  fullName?: string;
+  profilePhotoUrl?: string;
+}
+
 export const feedApi = {
   list: (params?: { sportId?: string; page?: number }) =>
     api.get<FeedResponse>('/feed', { params }),
-  createPost: (data: { content: string; sportId?: string; imageUrl?: string }) =>
-    api.post<FeedPost>('/feed', data),
+  createPost: (data: {
+    content: string;
+    sportId?: string;
+    imageUrl?: string;
+    visibility?: PostVisibility;
+  }) => api.post<FeedPost>('/feed', data),
   uploadImage: (uri: string) => {
     const form = new FormData();
     const ext = uri.split('.').pop() || 'jpg';
@@ -28,14 +55,20 @@ export const feedApi = {
   },
   react: (postId: string, reaction: ReactionKind | number = 'Like') =>
     api.post(`/feed/${postId}/react`, { reactionType: toReactionInt(reaction) }),
+  reactions: (postId: string) =>
+    api.get<ReactionsBreakdown>(`/feed/${postId}/reactions`),
+  trackView: (postId: string) =>
+    api.post(`/feed/${postId}/view`, undefined, { silent: true } as any),
   editPost: (postId: string, content: string) =>
     api.patch(`/feed/${postId}`, { content }),
   deletePost: (postId: string) =>
     api.delete(`/feed/${postId}`),
-  addComment: (postId: string, content: string) =>
-    api.post(`/feed/${postId}/comment`, { content }),
+  addComment: (postId: string, content: string, parentCommentId?: string) =>
+    api.post(`/feed/${postId}/comment`, { content, parentCommentId }),
   editComment: (postId: string, commentId: string, content: string) =>
     api.patch(`/feed/${postId}/comment/${commentId}`, { content }),
   deleteComment: (postId: string, commentId: string) =>
     api.delete(`/feed/${postId}/comment/${commentId}`),
+  searchUsers: (q: string) =>
+    api.get<MentionUser[]>('/feed/search-users', { params: { q } }),
 };

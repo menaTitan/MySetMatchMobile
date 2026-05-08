@@ -30,6 +30,13 @@ export interface HeadToHead {
   }[];
 }
 
+export interface MatchHistoryResponse {
+  total: number;
+  page: number;
+  pageSize: number;
+  items: MatchSummary[];
+}
+
 export const playerApi = {
   me: () => api.get<Player>('/players/me'),
   dashboard: (sportId?: string) =>
@@ -40,6 +47,10 @@ export const playerApi = {
     api.get<{ playerId: string; points: RatingHistoryPoint[] }>(`/players/${id}/rating-history`, { params: { days } }),
   headToHead: (id: string, opponentId: string) =>
     api.get<HeadToHead>(`/players/${id}/head-to-head/${opponentId}`),
+  matches: (playerId: string, params?: { skip?: number; take?: number; sportId?: string }) =>
+    api.get<MatchSummary[]>(`/players/${playerId}/matches`, { params }),
+  matchHistory: (playerId: string, params?: { page?: number; pageSize?: number; sportId?: string }) =>
+    api.get<MatchHistoryResponse>(`/players/${playerId}/match-history`, { params }),
   updateMe: (data: {
     name?: string;
     clubName?: string;

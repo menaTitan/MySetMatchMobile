@@ -1,12 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { playerApi, type HeadToHead } from '../../api';
 import { useSport } from '../../context/SportContext';
 import { useFetchData } from '../../hooks/useFetchData';
-import { radii, spacing, typography } from '../../theme';
-import { Card, EmptyState, LoadingView, SectionHeader } from '../../components/ui';
+import { spacing, typography } from '../../theme';
+import { Card, EmptyState, HeroHeader, LoadingView, SectionHeader } from '../../components/ui';
 
 export default function HeadToHeadScreen({ route }: any) {
   const { playerId, opponentId, opponentName } = route.params;
@@ -22,27 +20,23 @@ export default function HeadToHeadScreen({ route }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: theme.primary }} />
-      <LinearGradient
-        colors={theme.heroGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}
-      >
-        <Text style={styles.heroTitle}>vs {opponentName ?? 'Opponent'}</Text>
-        <View style={styles.tallyRow}>
-          <View style={styles.tally}>
-            <Text style={[typography.caption, { color: 'rgba(255,255,255,0.7)' }]}>WINS</Text>
-            <Text style={[styles.tallyVal, { color: theme.successGreen }]}>{wins}</Text>
+      <HeroHeader variant="standard" align="center">
+        <View style={styles.heroBody}>
+          <Text style={styles.heroTitle}>vs {opponentName ?? 'Opponent'}</Text>
+          <View style={styles.tallyRow}>
+            <View style={styles.tally}>
+              <Text style={[typography.caption, { color: 'rgba(255,255,255,0.7)' }]}>WINS</Text>
+              <Text style={[styles.tallyVal, { color: theme.successGreen }]}>{wins}</Text>
+            </View>
+            <Text style={[typography.caption, { color: 'rgba(255,255,255,0.4)' }]}>–</Text>
+            <View style={styles.tally}>
+              <Text style={[typography.caption, { color: 'rgba(255,255,255,0.7)' }]}>LOSSES</Text>
+              <Text style={[styles.tallyVal, { color: theme.dangerRed }]}>{losses}</Text>
+            </View>
           </View>
-          <Text style={[typography.caption, { color: 'rgba(255,255,255,0.4)' }]}>–</Text>
-          <View style={styles.tally}>
-            <Text style={[typography.caption, { color: 'rgba(255,255,255,0.7)' }]}>LOSSES</Text>
-            <Text style={[styles.tallyVal, { color: theme.dangerRed }]}>{losses}</Text>
-          </View>
+          <Text style={styles.winRate}>{totalMatches} matches · {winRate.toFixed(0)}% win rate</Text>
         </View>
-        <Text style={styles.winRate}>{totalMatches} matches · {winRate.toFixed(0)}% win rate</Text>
-      </LinearGradient>
+      </HeroHeader>
 
       <ScrollView contentContainerStyle={{ padding: spacing.base }}>
         <Card>
@@ -74,11 +68,7 @@ export default function HeadToHeadScreen({ route }: any) {
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    padding: spacing.lg, paddingBottom: spacing.xl,
-    borderBottomLeftRadius: radii.xxl, borderBottomRightRadius: radii.xxl,
-    alignItems: 'center',
-  },
+  heroBody: { alignItems: 'center' },
   heroTitle: { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: spacing.md },
   tallyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginBottom: spacing.sm },
   tally: { alignItems: 'center' },

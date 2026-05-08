@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSport } from '../../context/SportContext';
-import { radii, spacing, typography } from '../../theme';
-import { PageHeader, SearchBar } from '../../components/ui';
+import { HeroHeader, SearchBar, SegmentedTabs, type SegmentedTab } from '../../components/ui';
 
-// Each sub-screen renders in its own tree; we avoid nesting stacks to keep scrolling snappy.
 import TournamentsScreen from './TournamentsScreen';
 import MatchesScreen from './MatchesScreen';
 import LiveScoreScreen from './LiveScoreScreen';
@@ -13,7 +11,7 @@ import LeaderboardScreen from './LeaderboardScreen';
 
 type Section = 'tournaments' | 'matches' | 'live' | 'leaderboard';
 
-const SECTIONS: { key: Section; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const SECTIONS: SegmentedTab<Section>[] = [
   { key: 'tournaments', label: 'Tournaments', icon: 'trophy-outline' },
   { key: 'matches',     label: 'Matches',     icon: 'tennisball-outline' },
   { key: 'live',        label: 'Live',        icon: 'radio-outline' },
@@ -26,40 +24,25 @@ export default function PlayHubScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
-      <PageHeader
+      <HeroHeader
+        variant="compact"
         title="Play"
         subtitle="Tournaments, matches, live scores & rankings"
-        compact
+        right={
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <Pressable onPress={() => navigation.navigate('StartNewGame')} style={styles.headerBtn}>
+              <Ionicons name="play-circle-outline" size={20} color="#fff" />
+            </Pressable>
+            <Pressable onPress={() => navigation.navigate('TournamentArchive')} style={styles.headerBtn}>
+              <Ionicons name="archive-outline" size={20} color="#fff" />
+            </Pressable>
+          </View>
+        }
       >
         <SearchBar onPress={() => navigation.navigate('Search')} />
-      </PageHeader>
+      </HeroHeader>
 
-      {/* Segmented control */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.segRow}
-        style={{ backgroundColor: theme.cardBg, borderBottomWidth: 1, borderBottomColor: theme.divider, flexGrow: 0 }}
-      >
-        {SECTIONS.map((s) => {
-          const active = section === s.key;
-          return (
-            <Pressable
-              key={s.key}
-              onPress={() => setSection(s.key)}
-              style={[
-                styles.seg,
-                { borderColor: active ? theme.primary : theme.border, backgroundColor: active ? theme.primary : 'transparent' },
-              ]}
-            >
-              <Ionicons name={s.icon} size={14} color={active ? '#fff' : theme.textSecondary} />
-              <Text style={[typography.smallStrong, { color: active ? '#fff' : theme.textSecondary }]}>
-                {s.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <SegmentedTabs tabs={SECTIONS} value={section} onChange={setSection} variant="pill" />
 
       <View style={{ flex: 1 }}>
         {section === 'tournaments' && <TournamentsScreen navigation={navigation} />}
@@ -72,17 +55,9 @@ export default function PlayHubScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  segRow: {
-    padding: spacing.sm,
-    gap: spacing.xs + 2,
-  },
-  seg: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radii.pill,
-    borderWidth: 1.5,
+  headerBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
   },
 });

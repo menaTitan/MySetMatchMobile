@@ -1,22 +1,22 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, Pressable, ScrollView } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { matchesApi } from '../../api';
 import { useSport } from '../../context/SportContext';
 import type { MatchDetail } from '../../types';
 import SportPickerBar from '../../components/SportPickerBar';
-import { radii, shadows, spacing, typography } from '../../theme';
-import { Card, Chip, EmptyState, LoadingView, PageHeader } from '../../components/ui';
+import { radii, spacing, typography } from '../../theme';
+import { Card, Chip, EmptyState, LoadingView, PageHeader, SegmentedTabs, type SegmentedTab } from '../../components/ui';
 
-const STATUS_TABS = [
+type TabKey = 'all' | 'pending' | 'live' | 'completed';
+
+const STATUS_TABS: SegmentedTab<TabKey>[] = [
   { key: 'all',       label: 'All' },
   { key: 'pending',   label: 'Upcoming' },
   { key: 'live',      label: 'Live' },
   { key: 'completed', label: 'Done' },
-] as const;
-
-type TabKey = typeof STATUS_TABS[number]['key'];
+];
 
 export default function MatchesScreen({ navigation }: any) {
   const { currentSport, theme } = useSport();
@@ -116,31 +116,7 @@ export default function MatchesScreen({ navigation }: any) {
       />
       <SportPickerBar />
 
-      {/* Scrollable tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabsRow}
-        style={{ backgroundColor: theme.cardBg, borderBottomWidth: 1, borderBottomColor: theme.divider, flexGrow: 0 }}
-      >
-        {STATUS_TABS.map((t) => {
-          const active = tab === t.key;
-          return (
-            <Pressable
-              key={t.key}
-              onPress={() => setTab(t.key)}
-              style={[
-                styles.tab,
-                { borderColor: active ? theme.primary : theme.border, backgroundColor: active ? theme.primary : 'transparent' },
-              ]}
-            >
-              <Text style={[typography.smallStrong, { color: active ? '#fff' : theme.textSecondary }]}>
-                {t.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <SegmentedTabs tabs={STATUS_TABS} value={tab} onChange={setTab} variant="pill" />
 
       {loading ? <LoadingView /> : (
         <FlatList
@@ -180,12 +156,6 @@ function StatusChip({ status }: { status: string }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  tabsRow: { padding: spacing.sm, gap: spacing.xs + 2 },
-  tab: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: radii.pill,
-    borderWidth: 1.5,
-  },
   matchCard: { padding: spacing.base },
   topRow: {
     flexDirection: 'row',

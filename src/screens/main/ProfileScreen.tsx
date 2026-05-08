@@ -1,15 +1,13 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, RefreshControl } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
 import { playerApi } from '../../api';
 import type { SportRating } from '../../types';
-import { radii, shadows, spacing, typography } from '../../theme';
-import { Avatar, Button, Card, FeatureTileGrid, SectionHeader, type Tile } from '../../components/ui';
+import { radii, spacing, typography } from '../../theme';
+import { Avatar, Button, Card, FeatureTileGrid, HeroHeader, ListRow, SectionHeader } from '../../components/ui';
 import SportIcon from '../../components/ui/SportIcon';
 
 export default function ProfileScreen({ navigation }: any) {
@@ -38,8 +36,6 @@ export default function ProfileScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.pageBg }}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: theme.primary }} />
-
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: spacing.xxxl }}
@@ -52,17 +48,8 @@ export default function ProfileScreen({ navigation }: any) {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero */}
-        <LinearGradient
-          colors={theme.heroGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
-        >
-          <View pointerEvents="none" style={[styles.orb, styles.orbA, { backgroundColor: theme.accentLight }]} />
-          <View pointerEvents="none" style={[styles.orb, styles.orbB, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />
-
-          <View style={styles.avatarWrap}>
+        <HeroHeader variant="tall" align="center">
+          <View style={styles.heroBody}>
             <View
               style={[
                 styles.avatarRing,
@@ -71,43 +58,59 @@ export default function ProfileScreen({ navigation }: any) {
             >
               <Avatar name={player.name} photoUrl={player.profilePhotoUrl} size={96} />
             </View>
-          </View>
 
-          <Text style={styles.name}>{player.name}</Text>
-          {player.clubName ? <Text style={styles.club}>{player.clubName}</Text> : null}
-          {(player.city || player.country) ? (
-            <View style={styles.locationRow}>
-              <Ionicons name="location" size={12} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.location}>
-                {player.city}{player.country ? `, ${player.country}` : ''}
-              </Text>
-            </View>
-          ) : null}
+            <Text style={styles.name}>{player.name}</Text>
+            {player.clubName ? <Text style={styles.club}>{player.clubName}</Text> : null}
+            {(player.city || player.country) ? (
+              <View style={styles.locationRow}>
+                <Ionicons name="location" size={12} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.location}>
+                  {player.city}{player.country ? `, ${player.country}` : ''}
+                </Text>
+              </View>
+            ) : null}
 
-          {/* Rating pills */}
-          <View style={styles.ratingRow}>
-            <View style={[styles.ratingPill, { borderColor: theme.accent }]}>
-              <Text style={[typography.caption, { color: 'rgba(255,255,255,0.75)' }]}>GLOBAL</Text>
-              <Text style={[styles.ratingVal, { color: theme.accent }]}>{player.globalRating}</Text>
-            </View>
-            <View style={[styles.ratingPill, { borderColor: 'rgba(255,255,255,0.3)' }]}>
-              <Text style={[typography.caption, { color: 'rgba(255,255,255,0.75)' }]}>COUNTRY</Text>
-              <Text style={styles.ratingVal}>{player.countryRating}</Text>
+            <View style={styles.ratingRow}>
+              <View style={[styles.ratingPill, { borderColor: theme.accent }]}>
+                <Text style={[typography.caption, { color: 'rgba(255,255,255,0.75)' }]}>GLOBAL</Text>
+                <Text style={[styles.ratingVal, { color: theme.accent }]}>{player.globalRating}</Text>
+              </View>
+              <View style={[styles.ratingPill, { borderColor: 'rgba(255,255,255,0.3)' }]}>
+                <Text style={[typography.caption, { color: 'rgba(255,255,255,0.75)' }]}>COUNTRY</Text>
+                <Text style={styles.ratingVal}>{player.countryRating}</Text>
+              </View>
             </View>
           </View>
-        </LinearGradient>
+        </HeroHeader>
 
         <View style={{ padding: spacing.base, gap: spacing.base }}>
+          {/* Quick actions — 4 most-used in one horizontal row */}
           <View style={{ marginHorizontal: -spacing.xs }}>
             <FeatureTileGrid
+              variant="compact"
               tiles={[
-                { key: 'edit',     icon: 'create-outline',  label: 'Edit Profile',    hint: 'Name, club, photo',  tint: 'sport',  onPress: () => navigation.navigate('EditProfile') },
-                { key: 'assist',   icon: 'sparkles-outline', label: 'Assistant',      hint: 'Ask anything',       tint: 'accent', onPress: () => navigation.navigate('Assistant') },
-                { key: 'pay',      icon: 'card-outline',    label: 'Payments',       hint: 'History & receipts', tint: 'green',  onPress: () => navigation.navigate('PaymentHistory') },
-                ...(isAdmin ? ([{ key: 'admin', icon: 'shield-checkmark-outline', label: 'Admin Panel', hint: 'Users, refunds, stats', tint: 'red', onPress: () => navigation.navigate('AdminHome') }] as Tile[]) : []),
+                { key: 'edit',    icon: 'create-outline',   label: 'Edit Profile',  tint: 'sport',  onPress: () => navigation.navigate('EditProfile') },
+                { key: 'history', icon: 'list-outline',     label: 'History',       tint: 'blue',   onPress: () => navigation.navigate('MatchHistory') },
+                { key: 'pay',     icon: 'card-outline',     label: 'Payments',      tint: 'green',  onPress: () => navigation.navigate('PaymentHistory') },
+                { key: 'assist',  icon: 'sparkles-outline', label: 'Assistant',     tint: 'accent', onPress: () => navigation.navigate('Assistant') },
               ]}
             />
           </View>
+
+          {/* Admin shortcut — prominent, only for admins */}
+          {isAdmin && (
+            <Card padding={0} onPress={() => navigation.navigate('AdminHome')}>
+              <ListRow
+                icon="shield-checkmark-outline"
+                iconColor="#fff"
+                iconBg={theme.dangerRed}
+                title="Admin Panel"
+                subtitle="Users, payments, analytics"
+                showChevron
+                style={{ paddingHorizontal: spacing.base }}
+              />
+            </Card>
+          )}
 
           {/* Sport Ratings */}
           {sportRatings.length > 0 && (
@@ -148,6 +151,59 @@ export default function ProfileScreen({ navigation }: any) {
             <InfoRow icon="id-card-outline" label="Member ID" value={player.id.slice(0, 8).toUpperCase()} last />
           </Card>
 
+          {/* Help & Legal — collapsed list of secondary destinations */}
+          <Card padding={0}>
+            <View style={{ paddingHorizontal: spacing.base, paddingTop: spacing.sm }}>
+              <SectionHeader title="Help & Legal" icon="help-buoy-outline" />
+            </View>
+            <View style={{ paddingHorizontal: spacing.base }}>
+              <ListRow
+                icon="mail-outline"
+                title="Contact"
+                subtitle="Reach the team"
+                showChevron
+                onPress={() => navigation.navigate('Contact')}
+              />
+              <ListRow
+                icon="information-circle-outline"
+                title="About"
+                subtitle="Mission, sports"
+                showChevron
+                divider
+                onPress={() => navigation.navigate('About')}
+              />
+              <ListRow
+                icon="list-circle-outline"
+                title="Rules"
+                subtitle="Tournament rules"
+                showChevron
+                divider
+                onPress={() => navigation.navigate('Rules')}
+              />
+              <ListRow
+                icon="shield-outline"
+                title="Privacy Policy"
+                showChevron
+                divider
+                onPress={() => navigation.navigate('Privacy')}
+              />
+              <ListRow
+                icon="document-text-outline"
+                title="Terms of Service"
+                showChevron
+                divider
+                onPress={() => navigation.navigate('Terms')}
+              />
+              <ListRow
+                icon="cash-outline"
+                title="Refunds Policy"
+                showChevron
+                divider
+                onPress={() => navigation.navigate('Refunds')}
+              />
+            </View>
+          </Card>
+
           <Button
             title="Log Out"
             onPress={handleLogout}
@@ -176,25 +232,13 @@ function InfoRow({ icon, label, value, last }: { icon: any; label: string; value
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    alignItems: 'center',
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xl + 4,
-    paddingHorizontal: spacing.lg,
-    borderBottomLeftRadius: radii.xxl,
-    borderBottomRightRadius: radii.xxl,
-    overflow: 'hidden',
-  },
-  orb: { position: 'absolute', borderRadius: 999 },
-  orbA: { width: 280, height: 280, top: -90, right: -80, opacity: 0.8 },
-  orbB: { width: 180, height: 180, bottom: -60, left: -40 },
-
-  avatarWrap: { marginBottom: spacing.md },
+  heroBody: { alignItems: 'center' },
   avatarRing: {
     padding: 3,
     borderRadius: 56,
     borderWidth: 3,
     shadowOpacity: 0.5, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+    marginBottom: spacing.md,
   },
 
   name: {
