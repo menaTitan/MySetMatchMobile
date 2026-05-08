@@ -122,6 +122,19 @@ export const tournamentsApi = {
     api.post(`/tournaments/${id}/generate-knockout`),
   regenerateKnockout: (id: string) =>
     api.post(`/tournaments/${id}/regenerate-knockout`),
+  /**
+   * Full re-shuffle of the bracket — clears matches/groups, optionally shuffles
+   * the player order, then regenerates the group stage with `numberOfGroups`.
+   * Mirrors the website's resync-bracket modal.
+   */
+  resyncShuffleBracket: (id: string, opts: { shuffleGroups?: boolean; numberOfGroups?: number | null }) =>
+    api.post<{
+      success: boolean; playersProcessed: number;
+      matchesCreated: number; groupsCreated: number; shuffled: boolean;
+    }>(`/tournaments/${id}/resync-shuffle-bracket`, {
+      shuffleGroups: !!opts.shuffleGroups,
+      numberOfGroups: opts.numberOfGroups ?? null,
+    }),
   sendResultsEmail: (id: string) =>
     api.post(`/tournaments/${id}/send-results-email`),
   winners: (id: string) =>

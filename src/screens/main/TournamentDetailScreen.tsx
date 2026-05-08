@@ -97,7 +97,7 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
   }
 
   async function handleUnregister() {
-    const inProgress = data?.status === 'InProgress';
+    const inProgress = data?.status === 'Ongoing';
     const title = inProgress ? 'Withdraw from tournament' : 'Cancel registration';
     const body = inProgress
       ? 'You will be marked as withdrawn and any remaining matches will be forfeited. Continue?'
@@ -126,8 +126,8 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
 
   const canRegister = data.status === 'Upcoming' && !data.isRegistered;
   const isFull = data.maxPlayers != null && data.registeredCount >= data.maxPlayers;
-  const statusColor: any = data.status === 'Completed' ? 'success'
-    : data.status === 'InProgress' ? 'warning'
+  const statusColor: any = data.status === 'Finished' ? 'success'
+    : data.status === 'Ongoing' ? 'warning'
     : 'primary';
 
   // Tab counts shown in the segmented control.
@@ -214,7 +214,7 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
             />
           ) : null}
 
-          {data.status === 'InProgress' && (
+          {data.status === 'Ongoing' && (
             <Button
               title="View Live Scores"
               variant="ghost"
@@ -226,7 +226,7 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
             />
           )}
 
-          {data.status === 'Completed' && (
+          {data.status === 'Finished' && (
             <Button
               title="Download Results PDF"
               variant="ghost"

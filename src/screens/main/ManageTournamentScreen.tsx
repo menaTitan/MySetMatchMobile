@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { matchesApi, tournamentsApi, type RegistrationRow } from '../../api';
+import type { TournamentDetail } from '../../types';
 import { useSport } from '../../context/SportContext';
 import { useFetchData } from '../../hooks/useFetchData';
 import { radii, spacing, typography } from '../../theme';
@@ -19,6 +20,11 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
   const [extendOpen, setExtendOpen] = useState(false);
   const [newDeadline, setNewDeadline] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Resync & Shuffle sheet state.
+  const [resyncOpen, setResyncOpen] = useState(false);
+  const [resyncGroupsInput, setResyncGroupsInput] = useState('');
+  const [resyncShuffle, setResyncShuffle] = useState(true);
 
   // Edit-participant sheet state.
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -59,6 +65,22 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
     [id],
   );
 
+  // Tournament detail drives which lifecycle/bracket actions are valid given
+  // the current status. Without this, taps fall through to the server which
+  // 4xx's the request (e.g. Start when already Ongoing).
+  const { data: tournament, reload: reloadTournament } = useFetchData<TournamentDetail>(
+    async () => (await tournamentsApi.detail(id)).data,
+    [id],
+  );
+
+  const status = tournament?.status as
+    | 'Upcoming' | 'Ongoing' | 'Finished' | 'Cancelled' | undefined;
+  const isUpcoming = status === 'Upcoming';
+  const isOngoing  = status === 'Ongoing';
+  const isFinished = status === 'Finished';
+  const isCancelled = status === 'Cancelled';
+  const isLive = isUpcoming || isOngoing; // organizer can act
+
   async function approve(regId: string) {
     try { await tournamentsApi.approveRegistration(id, regId); toast('Approved', 'success'); reload(); }
     catch {}
@@ -87,7 +109,12 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
   async function doAction(label: string, fn: () => Promise<any>, confirm = true) {
     const run = async () => {
       setBusy(true);
-      try { await fn(); toast(`${label} done`, 'success'); reload(); }
+      try {
+        await fn();
+        toast(`${label} done`, 'success');
+        reload();
+        reloadTournament();
+      }
       catch (err: any) { Alert.alert('Failed', err?.response?.data?.message ?? `${label} failed`); }
       finally { setBusy(false); }
     };
@@ -96,6 +123,38 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
       { text: 'Cancel', style: 'cancel' },
       { text: label, onPress: run },
     ]);
+  }
+
+  function openResyncSheet() {
+    // Suggested group count: ~5 players per group, clamped to 2–8 (matches backend default).
+    const confirmedCount = (data ?? []).filter((r) => r.status === 'Confirmed').length;
+    const suggested = Math.max(2, Math.min(8, Math.floor(confirmedCount / 5))) || 2;
+    setResyncGroupsInput(String(suggested));
+    setResyncShuffle(true);
+    setResyncOpen(true);
+  }
+
+  async function submitResyncShuffle() {
+    const n = parseInt(resyncGroupsInput, 10);
+    const numberOfGroups = Number.isFinite(n) && n > 0 ? n : null;
+    setBusy(true);
+    try {
+      const { data: res } = await tournamentsApi.resyncShuffleBracket(id, {
+        shuffleGroups: resyncShuffle,
+        numberOfGroups,
+      });
+      toast(
+        `Resynced — ${res.groupsCreated} groups · ${res.matchesCreated} matches`,
+        'success',
+      );
+      setResyncOpen(false);
+      reload();
+      reloadTournament();
+    } catch (err: any) {
+      Alert.alert('Resync failed', err?.response?.data?.message ?? 'Could not resync the bracket.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function extendDeadline() {
@@ -224,47 +283,135 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
           contentContainerStyle={{ padding: spacing.base, gap: spacing.sm }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.accent} />}
         >
+          {/* Status banner — single source of truth for what actions are valid. */}
+          {status ? (
+            <Card>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Ionicons
+                  name={
+                    isOngoing ? 'radio' :
+                    isFinished ? 'trophy' :
+                    isCancelled ? 'close-circle' :
+                    'time-outline'
+                  }
+                  size={18}
+                  color={
+                    isOngoing ? theme.warning :
+                    isFinished ? theme.accent :
+                    isCancelled ? theme.dangerRed :
+                    theme.textSecondary
+                  }
+                />
+                <Text style={[typography.overline, { color: theme.textMuted, fontSize: 10 }]}>STATUS</Text>
+                <Text style={[
+                  typography.h3,
+                  {
+                    color: theme.textPrimary,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.8,
+                    flex: 1,
+                  },
+                ]}>
+                  {isOngoing ? 'In Progress' : status}
+                </Text>
+              </View>
+            </Card>
+          ) : null}
+
           <Card>
             <Text style={[typography.h3, { color: theme.primary, marginBottom: spacing.sm }]}>Tournament lifecycle</Text>
-            <ActionBtn label="Start Tournament" icon="play-outline" color={theme.successGreen} onPress={() => doAction('Start', () => tournamentsApi.start(id))} disabled={busy} />
-            <ActionBtn label="Extend Registration Deadline" icon="time-outline" onPress={() => setExtendOpen(true)} disabled={busy} />
-            <ActionBtn label="Cancel Tournament" icon="close-circle-outline" color={theme.warning} onPress={() => doAction('Cancel', () => tournamentsApi.cancel(id))} disabled={busy} />
-            <ActionBtn label="Finish Tournament" icon="trophy-outline" color={theme.accent} onPress={() => doAction('Finish', () => tournamentsApi.finish(id))} disabled={busy} />
+            {isUpcoming ? (
+              <ActionBtn
+                label="Start Tournament"
+                icon="play-outline"
+                color={theme.successGreen}
+                onPress={() => doAction('Start', () => tournamentsApi.start(id))}
+                disabled={busy}
+              />
+            ) : null}
+            {isUpcoming ? (
+              <ActionBtn
+                label="Extend Registration Deadline"
+                icon="time-outline"
+                onPress={() => setExtendOpen(true)}
+                disabled={busy}
+              />
+            ) : null}
+            {isLive ? (
+              <ActionBtn
+                label="Cancel Tournament"
+                icon="close-circle-outline"
+                color={theme.warning}
+                onPress={() => doAction('Cancel', () => tournamentsApi.cancel(id))}
+                disabled={busy}
+              />
+            ) : null}
+            {isOngoing ? (
+              <ActionBtn
+                label="Finish Tournament"
+                icon="trophy-outline"
+                color={theme.accent}
+                onPress={() => doAction('Finish', () => tournamentsApi.finish(id))}
+                disabled={busy}
+              />
+            ) : null}
+            {!isLive && !isOngoing ? (
+              <Text style={[typography.small, { color: theme.textMuted, paddingVertical: spacing.sm }]}>
+                Tournament is {isFinished ? 'finished' : 'cancelled'}. No lifecycle actions available.
+              </Text>
+            ) : null}
           </Card>
 
           <Card>
             <Text style={[typography.h3, { color: theme.primary, marginBottom: spacing.sm }]}>Brackets</Text>
-            <ActionBtn
-              label="Generate / Shuffle Group Stage"
-              icon="shuffle-outline"
-              onPress={() => doAction('Shuffle groups', () => tournamentsApi.generateGroups(id))}
-              disabled={busy}
-            />
-            <ActionBtn
-              label="Generate Knockout Stage"
-              icon="git-branch-outline"
-              onPress={() => doAction('Generate knockout', () => tournamentsApi.generateKnockout(id))}
-              disabled={busy}
-            />
-            <ActionBtn
-              label="Regenerate Knockout (after groups complete)"
-              icon="refresh-outline"
-              onPress={() => doAction('Regenerate knockout', () => tournamentsApi.regenerateKnockout(id))}
-              disabled={busy}
-            />
-            <ActionBtn
-              label="Resync Bracket"
-              icon="sync-outline"
-              onPress={() => doAction('Resync bracket', () => matchesApi.resyncBracket({ tournamentId: id }))}
-              disabled={busy}
-            />
-            <ActionBtn label="Open Bracket Editor" icon="construct-outline" onPress={() => navigation.navigate('BracketEditor', { tournamentId: id, name })} />
+            {isLive ? (
+              <>
+                <ActionBtn
+                  label="Generate / Shuffle Group Stage"
+                  icon="shuffle-outline"
+                  onPress={() => doAction('Shuffle groups', () => tournamentsApi.generateGroups(id))}
+                  disabled={busy}
+                />
+                <ActionBtn
+                  label="Generate Knockout Stage"
+                  icon="git-branch-outline"
+                  onPress={() => doAction('Generate knockout', () => tournamentsApi.generateKnockout(id))}
+                  disabled={busy}
+                />
+                <ActionBtn
+                  label="Regenerate Knockout (after groups complete)"
+                  icon="refresh-outline"
+                  onPress={() => doAction('Regenerate knockout', () => tournamentsApi.regenerateKnockout(id))}
+                  disabled={busy}
+                />
+                <ActionBtn
+                  label="Resync & Shuffle Bracket"
+                  icon="sync-outline"
+                  onPress={openResyncSheet}
+                  disabled={busy}
+                />
+                <ActionBtn
+                  label="Recompute Set Scores"
+                  icon="refresh-circle-outline"
+                  onPress={() => doAction('Recompute scores', () => matchesApi.resyncBracket({ tournamentId: id }))}
+                  disabled={busy}
+                />
+                <ActionBtn label="Open Bracket Editor" icon="construct-outline" onPress={() => navigation.navigate('BracketEditor', { tournamentId: id, name })} />
+              </>
+            ) : null}
             <ActionBtn label="View Brackets" icon="eye-outline" onPress={() => navigation.navigate('Brackets', { tournamentId: id, name })} />
           </Card>
 
           <Card>
             <Text style={[typography.h3, { color: theme.primary, marginBottom: spacing.sm }]}>Communications & payments</Text>
-            <ActionBtn label="Send Results Email" icon="mail-outline" onPress={() => doAction('Send results email', () => tournamentsApi.sendResultsEmail(id))} disabled={busy} />
+            {isFinished ? (
+              <ActionBtn
+                label="Send Results Email"
+                icon="mail-outline"
+                onPress={() => doAction('Send results email', () => tournamentsApi.sendResultsEmail(id))}
+                disabled={busy}
+              />
+            ) : null}
             <ActionBtn label="Tournament Payments" icon="card-outline" onPress={() => navigation.navigate('TournamentPayments', { tournamentId: id, name })} />
             <ActionBtn label="Create Tournament Chat" icon="chatbubble-ellipses-outline" onPress={async () => {
               try { const { chatApi } = await import('../../api'); const r = await chatApi.createTournamentChat(id); toast('Chat created', 'success'); navigation.navigate('ChatRoom', { roomId: r.data.id }); } catch {}
@@ -353,6 +500,69 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
           <Button title="Extend" variant="primary" onPress={extendDeadline} loading={busy} style={{ flex: 1 }} />
         </View>
       </BottomSheet>
+
+      <BottomSheet
+        visible={resyncOpen}
+        onClose={() => setResyncOpen(false)}
+        title="Resync & shuffle bracket"
+        subtitle="Clears matches/groups and regenerates the group stage."
+      >
+        <Text style={[typography.overline, { color: theme.textMuted, fontSize: 10, marginBottom: 6 }]}>
+          NUMBER OF GROUPS
+        </Text>
+        <TextInput
+          value={resyncGroupsInput}
+          onChangeText={(v) => setResyncGroupsInput(v.replace(/[^0-9]/g, ''))}
+          placeholder="e.g. 4"
+          placeholderTextColor={theme.textMuted}
+          keyboardType="number-pad"
+          style={[styles.input, { borderColor: theme.border, color: theme.textPrimary }]}
+        />
+        <Text style={[typography.caption, { color: theme.textMuted, marginTop: 4 }]}>
+          {(data ?? []).filter((r) => r.status === 'Confirmed').length} confirmed players
+          {resyncGroupsInput
+            ? `  ·  ~${(((data ?? []).filter((r) => r.status === 'Confirmed').length) / Math.max(parseInt(resyncGroupsInput, 10) || 1, 1)).toFixed(1)} per group`
+            : ''}
+        </Text>
+
+        <Pressable
+          onPress={() => setResyncShuffle((x) => !x)}
+          style={({ pressed }) => [
+            styles.toggleRow,
+            {
+              borderColor: resyncShuffle ? theme.accent : theme.border,
+              backgroundColor: resyncShuffle ? theme.featureBg : 'transparent',
+              opacity: pressed ? 0.8 : 1,
+              marginTop: spacing.md,
+            },
+          ]}
+        >
+          <View style={[
+            styles.checkbox,
+            { borderColor: resyncShuffle ? theme.accent : theme.border, backgroundColor: resyncShuffle ? theme.accent : 'transparent' },
+          ]}>
+            {resyncShuffle ? <Ionicons name="checkmark" size={12} color={theme.textInverse} /> : null}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.bodyStrong, { color: theme.textPrimary }]}>Shuffle players</Text>
+            <Text style={[typography.caption, { color: theme.textMuted }]}>
+              Randomize player order before assigning groups.
+            </Text>
+          </View>
+        </Pressable>
+
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+          <Button title="Cancel" variant="ghost" onPress={() => setResyncOpen(false)} style={{ flex: 1 }} />
+          <Button
+            title="Resync"
+            variant="primary"
+            leftIcon="sync-outline"
+            onPress={submitResyncShuffle}
+            loading={busy}
+            style={{ flex: 1 }}
+          />
+        </View>
+      </BottomSheet>
     </View>
   );
 }
@@ -410,5 +620,16 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1, borderRadius: radii.md,
     padding: spacing.sm + 2, fontSize: 16,
+  },
+
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4,
+    padding: spacing.sm + 4,
+    borderWidth: 1, borderRadius: radii.md,
+  },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 4,
+    borderWidth: 1.5,
+    alignItems: 'center', justifyContent: 'center',
   },
 });
