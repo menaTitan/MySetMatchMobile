@@ -265,7 +265,14 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
                 try {
                   const r = await chatApi.createTournamentChat(id);
                   const root = navigation.getParent()?.getParent() ?? navigation.getParent() ?? navigation;
-                  root.navigate('Community', { screen: 'ChatRoom', params: { roomId: r.data.id, title: data.name } });
+                  // RootStack → Main → Community tab → ChatRoom.
+                  root.navigate('Main', {
+                    screen: 'Community',
+                    params: {
+                      screen: 'ChatRoom',
+                      params: { roomId: r.data.id, title: data.name },
+                    },
+                  });
                 } catch (err: any) {
                   Alert.alert('Error', err?.response?.data?.message ?? 'Could not open tournament chat.');
                 }

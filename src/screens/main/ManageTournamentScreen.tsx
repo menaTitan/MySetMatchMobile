@@ -414,7 +414,22 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
             ) : null}
             <ActionBtn label="Tournament Payments" icon="card-outline" onPress={() => navigation.navigate('TournamentPayments', { tournamentId: id, name })} />
             <ActionBtn label="Create Tournament Chat" icon="chatbubble-ellipses-outline" onPress={async () => {
-              try { const { chatApi } = await import('../../api'); const r = await chatApi.createTournamentChat(id); toast('Chat created', 'success'); navigation.navigate('ChatRoom', { roomId: r.data.id }); } catch {}
+              try {
+                const { chatApi } = await import('../../api');
+                const r = await chatApi.createTournamentChat(id);
+                toast('Chat created', 'success');
+                // ChatRoom lives at: RootStack → Main (tabs) → Community (tab)
+                // → ChatRoom. Walk to the root, then nest the navigation 3
+                // levels deep so React Navigation routes correctly.
+                const root = navigation.getParent()?.getParent() ?? navigation.getParent() ?? navigation;
+                root.navigate('Main', {
+                  screen: 'Community',
+                  params: {
+                    screen: 'ChatRoom',
+                    params: { roomId: r.data.id, title: name },
+                  },
+                });
+              } catch {}
             }} />
           </Card>
 
