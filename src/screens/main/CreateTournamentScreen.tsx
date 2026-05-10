@@ -3,7 +3,8 @@ import {
   View, Text, StyleSheet, Pressable, FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { tournamentsApi, sportsApi, locationsApi } from '../../api';
+import { tournamentsApi, sportsApi } from '../../api';
+import { useLocationChain } from '../../hooks/useLocationChain';
 import { useSport } from '../../context/SportContext';
 import type { Sport } from '../../types';
 import { radii, spacing, typography } from '../../theme';
@@ -21,8 +22,7 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
   const isEdit = !!editingId;
 
   const [sports, setSports] = useState<Sport[]>([]);
-  const [countries, setCountries] = useState<PickerItem[]>([]);
-  const [cities, setCities] = useState<PickerItem[]>([]);
+  const loc = useLocationChain();
 
   const [form, setForm] = useState({
     name: '',
@@ -34,21 +34,16 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
     format: 'SingleElimination' as typeof FORMATS[number],
     sportId: currentSport?.id ?? '',
     sportName: currentSport?.name ?? '',
-    countryId: '',
-    countryName: '',
-    cityId: '',
-    cityName: '',
     maxParticipants: '',
     entryFee: '',
     isDoubles: false,
   });
 
-  const [modal, setModal] = useState<null | 'sport' | 'type' | 'format' | 'country' | 'city'>(null);
+  const [modal, setModal] = useState<null | 'sport' | 'type' | 'format' | 'country' | 'region' | 'city'>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     sportsApi.list().then(r => setSports(r.data)).catch(() => {});
-    locationsApi.countries().then(r => setCountries(r.data)).catch(() => {});
   }, []);
 
   // When editing, pull current values into the form. We rely on the detail
@@ -72,24 +67,21 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
           format: (t as any).format ?? f.format,
           sportId: (t as any).sportId ?? f.sportId,
           sportName: (t as any).sportName ?? f.sportName,
-          countryId: (t as any).countryId ?? '',
-          countryName: (t as any).country ?? '',
-          cityId: (t as any).cityId ?? '',
-          cityName: (t as any).city ?? '',
           maxParticipants: (t as any).maxPlayers != null ? String((t as any).maxPlayers) : '',
           entryFee: (t as any).entryFee != null ? String((t as any).entryFee) : '',
           isDoubles: !!(t as any).isDoubles,
         }));
+        // Detail endpoint only returns names (not IDs) for country/city — pre-fill
+        // the display labels so the form looks populated. The user must re-pick
+        // if they want to actually change the location.
+        if ((t as any).country || (t as any).city) {
+          loc.setCountry({ id: '', name: (t as any).country ?? '' });
+          if ((t as any).city) loc.setCity({ id: '', name: (t as any).city ?? '' });
+        }
       } catch {}
     })();
     return () => { cancelled = true; };
   }, [editingId, navigation]);
-
-  useEffect(() => {
-    if (!form.countryId) return;
-    setForm(f => ({ ...f, cityId: '', cityName: '' }));
-    locationsApi.cities(form.countryId).then(r => setCities(r.data)).catch(() => setCities([]));
-  }, [form.countryId]);
 
   async function handleCreate() {
     if (!form.name.trim()) { toast('Name is required', 'warning'); return; }
@@ -114,8 +106,8 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
       type: form.type,
       format: form.format,
       sportId: form.sportId,
-      countryId: form.countryId || undefined,
-      cityId: form.cityId || undefined,
+      countryId: loc.countryId || undefined,
+      cityId: loc.cityId || undefined,
       maxParticipants: form.maxParticipants ? parseInt(form.maxParticipants) : undefined,
       entryFee: form.entryFee ? parseFloat(form.entryFee) : undefined,
       isDoubles: form.isDoubles,
@@ -168,8 +160,25 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
           <PickerRow label="Sport *"  value={form.sportName} icon="tennisball-outline" onPress={() => setModal('sport')} />
           <PickerRow label="Type"     value={form.type}      icon="earth-outline"     onPress={() => setModal('type')} />
           <PickerRow label="Format"   value={form.format}    icon="git-branch-outline" onPress={() => setModal('format')} />
-          <PickerRow label="Country"  value={form.countryName} icon="flag-outline"     onPress={() => setModal('country')} />
-          <PickerRow label="City"     value={form.cityName}  icon="location-outline"  disabled={!form.countryId} onPress={() => form.countryId && setModal('city')} />
+          <PickerRow label="Country"  value={loc.countryName} icon="flag-outline"     onPress={() => setModal('country')} />
+          {loc.hasRegions ? (
+            <PickerRow
+              label="State / Region"
+              value={loc.regionName}
+              icon="map-outline"
+              onPress={() => setModal('region')}
+            />
+          ) : null}
+          <PickerRow
+            label="City"
+            value={loc.cityName}
+            icon="location-outline"
+            disabled={!loc.countryId || (loc.hasRegions && !loc.regionId)}
+            onPress={() => {
+              if (loc.hasRegions && !loc.regionId) return;
+              if (loc.countryId) setModal('city');
+            }}
+          />
         </Card>
 
         <Card>
@@ -240,17 +249,25 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
       <SheetPicker
         visible={modal === 'country'}
         title="Select Country"
-        items={countries}
+        items={loc.countries}
         searchable
-        onSelect={(i) => { setForm(f => ({ ...f, countryId: i.id, countryName: i.name })); setModal(null); }}
+        onSelect={(i) => { loc.setCountry(i); setModal(null); }}
+        onClose={() => setModal(null)}
+      />
+      <SheetPicker
+        visible={modal === 'region'}
+        title="Select State / Region"
+        items={loc.regions}
+        searchable
+        onSelect={(i) => { loc.setRegion(i); setModal(null); }}
         onClose={() => setModal(null)}
       />
       <SheetPicker
         visible={modal === 'city'}
         title="Select City"
-        items={cities}
+        items={loc.cities}
         searchable
-        onSelect={(i) => { setForm(f => ({ ...f, cityId: i.id, cityName: i.name })); setModal(null); }}
+        onSelect={(i) => { loc.setCity(i); setModal(null); }}
         onClose={() => setModal(null)}
       />
     </>

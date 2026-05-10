@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
-import { tournamentsApi, locationsApi } from '../../api';
+import { tournamentsApi } from '../../api';
 import { useSport } from '../../context/SportContext';
+import { useLocationChain } from '../../hooks/useLocationChain';
 import { radii, spacing, typography } from '../../theme';
 import { Button, Chip, Input, KeyboardAware, PageHeader, useToast } from '../../components/ui';
 
@@ -16,14 +17,8 @@ export default function PublicRegistrationScreen({ route, navigation }: any) {
   const [phone, setPhone] = useState('');
   const [skill, setSkill] = useState<string | null>(null);
   const [rating, setRating] = useState('');
-  const [countryId, setCountryId] = useState<string | null>(null);
-  const [cityId, setCityId] = useState<string | null>(null);
-  const [countries, setCountries] = useState<{ id: string; name: string }[]>([]);
-  const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
+  const loc = useLocationChain();
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => { locationsApi.countries().then((r) => setCountries(r.data)).catch(() => {}); }, []);
-  useEffect(() => { if (countryId) locationsApi.cities(countryId).then((r) => setCities(r.data)).catch(() => {}); }, [countryId]);
 
   async function submit() {
     if (!first.trim() || !last.trim() || !email.trim()) {
@@ -35,7 +30,7 @@ export default function PublicRegistrationScreen({ route, navigation }: any) {
         tournamentId,
         firstName: first.trim(), lastName: last.trim(),
         email: email.trim(), phone: phone.trim() || undefined,
-        countryId: countryId ?? undefined, cityId: cityId ?? undefined,
+        countryId: loc.countryId || undefined, cityId: loc.cityId || undefined,
         skillLevel: skill ?? undefined,
         ratingEstimate: rating ? parseInt(rating) : undefined,
       });
@@ -65,21 +60,50 @@ export default function PublicRegistrationScreen({ route, navigation }: any) {
 
         <Text style={[typography.smallStrong, { color: theme.textPrimary, marginTop: spacing.sm }]}>Country</Text>
         <View style={styles.row}>
-          {countries.map((c) => (
-            <Chip key={c.id} label={c.name} color={countryId === c.id ? 'primary' : 'muted'} variant={countryId === c.id ? 'solid' : 'soft'} onPress={() => { setCountryId(c.id); setCityId(null); }} />
+          {loc.countries.map((c) => (
+            <Chip
+              key={c.id}
+              label={c.name}
+              color={loc.countryId === c.id ? 'primary' : 'muted'}
+              variant={loc.countryId === c.id ? 'solid' : 'soft'}
+              onPress={() => loc.setCountry(c)}
+            />
           ))}
         </View>
 
-        {countryId && (
+        {loc.hasRegions ? (
           <>
-            <Text style={[typography.smallStrong, { color: theme.textPrimary, marginTop: spacing.sm }]}>City</Text>
+            <Text style={[typography.smallStrong, { color: theme.textPrimary, marginTop: spacing.sm }]}>State / Region</Text>
             <View style={styles.row}>
-              {cities.map((c) => (
-                <Chip key={c.id} label={c.name} color={cityId === c.id ? 'primary' : 'muted'} variant={cityId === c.id ? 'solid' : 'soft'} onPress={() => setCityId(c.id)} />
+              {loc.regions.map((r) => (
+                <Chip
+                  key={r.id}
+                  label={r.name}
+                  color={loc.regionId === r.id ? 'primary' : 'muted'}
+                  variant={loc.regionId === r.id ? 'solid' : 'soft'}
+                  onPress={() => loc.setRegion(r)}
+                />
               ))}
             </View>
           </>
-        )}
+        ) : null}
+
+        {loc.countryId && (!loc.hasRegions || loc.regionId) ? (
+          <>
+            <Text style={[typography.smallStrong, { color: theme.textPrimary, marginTop: spacing.sm }]}>City</Text>
+            <View style={styles.row}>
+              {loc.cities.map((c) => (
+                <Chip
+                  key={c.id}
+                  label={c.name}
+                  color={loc.cityId === c.id ? 'primary' : 'muted'}
+                  variant={loc.cityId === c.id ? 'solid' : 'soft'}
+                  onPress={() => loc.setCity(c)}
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
 
         <Button title="Register" onPress={submit} loading={busy} variant="primary" size="lg" fullWidth leftIcon="checkmark-circle-outline" style={{ marginTop: spacing.lg }} />
       </KeyboardAware>

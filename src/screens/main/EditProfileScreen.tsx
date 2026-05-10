@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Alert,
   Pressable, FlatList, TextInput,
@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
-import { locationsApi, playerApi } from '../../api';
+import { playerApi } from '../../api';
+import { useLocationChain } from '../../hooks/useLocationChain';
 import { radii, shadows, spacing, typography } from '../../theme';
 import { Avatar, BottomSheet, Button, Card, HeroHeader, Input, KeyboardAware, useToast } from '../../components/ui';
 
@@ -26,27 +27,15 @@ export default function EditProfileScreen({ navigation }: any) {
     clubName: player?.clubName ?? '',
     handedness: player?.handedness ?? '',
     playStyle: player?.playStyle ?? '',
-    countryId: '',
-    cityId: '',
   });
-  const [countryName, setCountryName] = useState(player?.country ?? '');
-  const [cityName, setCityName] = useState(player?.city ?? '');
+  const loc = useLocationChain({
+    initialCountryName: player?.country ?? '',
+    initialCityName: player?.city ?? '',
+  });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const [countries, setCountries] = useState<PickerItem[]>([]);
-  const [cities, setCities] = useState<PickerItem[]>([]);
-  const [modal, setModal] = useState<null | 'country' | 'city' | 'handedness' | 'style'>(null);
-
-  useEffect(() => {
-    locationsApi.countries().then(r => setCountries(r.data)).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!form.countryId) return;
-    setCities([]); setCityName(''); setForm(f => ({ ...f, cityId: '' }));
-    locationsApi.cities(form.countryId).then(r => setCities(r.data)).catch(() => {});
-  }, [form.countryId]);
+  const [modal, setModal] = useState<null | 'country' | 'region' | 'city' | 'handedness' | 'style'>(null);
 
   async function handlePickPhoto() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -78,8 +67,8 @@ export default function EditProfileScreen({ navigation }: any) {
         clubName: form.clubName,
         handedness: form.handedness || undefined,
         playStyle: form.playStyle || undefined,
-        countryId: form.countryId || undefined,
-        cityId: form.cityId || undefined,
+        countryId: loc.countryId || undefined,
+        cityId: loc.cityId || undefined,
       });
       if (player) updatePlayer({ ...player, ...data });
       toast('Profile saved', 'success');
@@ -127,8 +116,25 @@ export default function EditProfileScreen({ navigation }: any) {
           </Card>
 
           <Card>
-            <PickerField label="Country" value={countryName} icon="earth-outline" onPress={() => setModal('country')} />
-            <PickerField label="City" value={cityName} icon="location-outline" disabled={!form.countryId} onPress={() => form.countryId && setModal('city')} />
+            <PickerField label="Country" value={loc.countryName} icon="earth-outline" onPress={() => setModal('country')} />
+            {loc.hasRegions ? (
+              <PickerField
+                label="State / Region"
+                value={loc.regionName}
+                icon="map-outline"
+                onPress={() => setModal('region')}
+              />
+            ) : null}
+            <PickerField
+              label="City"
+              value={loc.cityName}
+              icon="location-outline"
+              disabled={!loc.countryId || (loc.hasRegions && !loc.regionId)}
+              onPress={() => {
+                if (loc.hasRegions && !loc.regionId) return;
+                if (loc.countryId) setModal('city');
+              }}
+            />
           </Card>
 
           <Button
@@ -161,17 +167,25 @@ export default function EditProfileScreen({ navigation }: any) {
       <PickerModal
         visible={modal === 'country'}
         title="Select Country"
-        items={countries}
+        items={loc.countries}
         searchable
-        onSelect={(i) => { setForm(f => ({ ...f, countryId: i.id })); setCountryName(i.name); setModal(null); }}
+        onSelect={(i) => { loc.setCountry(i); setModal(null); }}
+        onClose={() => setModal(null)}
+      />
+      <PickerModal
+        visible={modal === 'region'}
+        title="Select State / Region"
+        items={loc.regions}
+        searchable
+        onSelect={(i) => { loc.setRegion(i); setModal(null); }}
         onClose={() => setModal(null)}
       />
       <PickerModal
         visible={modal === 'city'}
         title="Select City"
-        items={cities}
+        items={loc.cities}
         searchable
-        onSelect={(i) => { setForm(f => ({ ...f, cityId: i.id })); setCityName(i.name); setModal(null); }}
+        onSelect={(i) => { loc.setCity(i); setModal(null); }}
         onClose={() => setModal(null)}
       />
     </>

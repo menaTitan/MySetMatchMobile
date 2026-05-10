@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Alert, FlatList, Pressable, TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { authApi, locationsApi } from '../../api';
+import { authApi } from '../../api';
+import { useLocationChain } from '../../hooks/useLocationChain';
 import { DEFAULT_THEME, radii, spacing, typography } from '../../theme';
 import { AuthScreen, BottomSheet, Button, Input } from '../../components/ui';
 
@@ -14,28 +15,13 @@ interface PickerItem { id: string; name: string; }
 
 export default function RegisterScreen({ navigation }: any) {
   const { login } = useAuth();
-  const [form, setForm] = useState({ email: '', password: '', name: '', countryId: '', cityId: '' });
-  const [countries, setCountries] = useState<PickerItem[]>([]);
-  const [cities, setCities] = useState<PickerItem[]>([]);
-  const [selectedCountryName, setSelectedCountryName] = useState('');
-  const [selectedCityName, setSelectedCityName] = useState('');
+  const [form, setForm] = useState({ email: '', password: '', name: '' });
+  const loc = useLocationChain();
   const [loading, setLoading] = useState(false);
   const [countryModal, setCountryModal] = useState(false);
+  const [regionModal, setRegionModal] = useState(false);
   const [cityModal, setCityModal] = useState(false);
   const [showPass, setShowPass] = useState(false);
-
-  useEffect(() => {
-    locationsApi.countries().then(r => setCountries(r.data)).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (form.countryId) {
-      setCities([]);
-      setSelectedCityName('');
-      setForm(f => ({ ...f, cityId: '' }));
-      locationsApi.cities(form.countryId).then(r => setCities(r.data)).catch(() => setCities([]));
-    }
-  }, [form.countryId]);
 
   function update(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }));
@@ -52,8 +38,8 @@ export default function RegisterScreen({ navigation }: any) {
         email: form.email.trim().toLowerCase(),
         password: form.password,
         name: form.name.trim(),
-        countryId: form.countryId,
-        cityId: form.cityId,
+        countryId: loc.countryId,
+        cityId: loc.cityId,
       });
       await login(form.email.trim().toLowerCase(), form.password);
     } catch (err: any) {
@@ -103,17 +89,35 @@ export default function RegisterScreen({ navigation }: any) {
         <PickerField
           label="Country"
           placeholder="Select country (optional)"
-          value={selectedCountryName}
+          value={loc.countryName}
           icon="earth-outline"
           onPress={() => setCountryModal(true)}
         />
+        {loc.hasRegions ? (
+          <PickerField
+            label="State / Region"
+            placeholder="Select state"
+            value={loc.regionName}
+            icon="map-outline"
+            onPress={() => setRegionModal(true)}
+          />
+        ) : null}
         <PickerField
           label="City"
-          placeholder={form.countryId ? 'Select city (optional)' : 'Choose country first'}
-          value={selectedCityName}
+          placeholder={
+            !loc.countryId
+              ? 'Choose country first'
+              : loc.hasRegions && !loc.regionId
+                ? 'Choose state first'
+                : 'Select city (optional)'
+          }
+          value={loc.cityName}
           icon="location-outline"
-          disabled={!form.countryId}
-          onPress={() => form.countryId && setCityModal(true)}
+          disabled={!loc.countryId || (loc.hasRegions && !loc.regionId)}
+          onPress={() => {
+            if (loc.hasRegions && !loc.regionId) return;
+            if (loc.countryId) setCityModal(true);
+          }}
         />
 
         <Button
@@ -137,16 +141,23 @@ export default function RegisterScreen({ navigation }: any) {
       <PickerModal
         visible={countryModal}
         onClose={() => setCountryModal(false)}
-        items={countries}
+        items={loc.countries}
         title="Select Country"
-        onSelect={(item) => { update('countryId', item.id); setSelectedCountryName(item.name); }}
+        onSelect={(item) => loc.setCountry(item)}
+      />
+      <PickerModal
+        visible={regionModal}
+        onClose={() => setRegionModal(false)}
+        items={loc.regions}
+        title="Select State / Region"
+        onSelect={(item) => loc.setRegion(item)}
       />
       <PickerModal
         visible={cityModal}
         onClose={() => setCityModal(false)}
-        items={cities}
+        items={loc.cities}
         title="Select City"
-        onSelect={(item) => { update('cityId', item.id); setSelectedCityName(item.name); }}
+        onSelect={(item) => loc.setCity(item)}
       />
     </>
   );
