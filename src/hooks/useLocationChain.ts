@@ -150,6 +150,10 @@ export function useLocationChain(opts: UseLocationChainOptions = {}) {
     setRegionName('');
     setCityIdState('');
     setCityName('');
+    // Clear stale options up front so the next picker open doesn't show
+    // the previous country's regions/cities while the API call is in flight.
+    setRegions([]);
+    setCities([]);
   }, []);
 
   const setRegion = useCallback((item: PickerItem | null) => {
@@ -157,6 +161,9 @@ export function useLocationChain(opts: UseLocationChainOptions = {}) {
     setRegionName(item?.name ?? '');
     setCityIdState('');
     setCityName('');
+    // Drop the old state's cities immediately so the user doesn't see them
+    // when they reopen the City picker before the new fetch returns.
+    setCities([]);
   }, []);
 
   const setCity = useCallback((item: PickerItem | null) => {

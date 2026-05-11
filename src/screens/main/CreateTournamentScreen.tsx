@@ -61,8 +61,8 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
           name: t.name ?? '',
           description: (t as any).description ?? '',
           venue: (t as any).venueAddress ?? '',
-          startDate: t.startDate ? t.startDate.slice(0, 10) : '',
-          endDate: (t as any).endDate ? (t as any).endDate.slice(0, 10) : '',
+          startDate: t.startDate ?? '',
+          endDate: (t as any).endDate ?? '',
           type: (t as any).type ?? f.type,
           format: (t as any).format ?? f.format,
           sportId: (t as any).sportId ?? f.sportId,
@@ -92,7 +92,7 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
     const start = new Date(form.startDate);
     const end = new Date(form.endDate);
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      toast('Use YYYY-MM-DD format for dates', 'warning'); return;
+      toast('Pick valid dates', 'warning'); return;
     }
     if (end < start) { toast('End must be on/after start', 'warning'); return; }
 
@@ -141,16 +141,18 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
 
         <Card>
           <DatePickerField
-            label="Start date *"
+            label="Starts *"
+            withTime
             value={form.startDate}
             onChange={v => setForm(f => ({ ...f, startDate: v, endDate: f.endDate && f.endDate < v ? v : f.endDate }))}
-            placeholder="Pick a start date"
+            placeholder="Pick a start date & time"
           />
           <DatePickerField
-            label="End date *"
+            label="Ends *"
+            withTime
             value={form.endDate}
             onChange={v => setForm(f => ({ ...f, endDate: v }))}
-            placeholder="Pick an end date"
+            placeholder="Pick an end date & time"
             minimumDate={form.startDate ? new Date(form.startDate) : undefined}
           />
         </Card>

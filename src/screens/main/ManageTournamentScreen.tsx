@@ -158,7 +158,7 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
   }
 
   async function extendDeadline() {
-    if (!newDeadline) { Alert.alert('Date required', 'Enter a date in YYYY-MM-DD format.'); return; }
+    if (!newDeadline) { Alert.alert('Date required', 'Pick a new deadline.'); return; }
     setBusy(true);
     try {
       await tournamentsApi.extendDeadline(id, new Date(newDeadline).toISOString());
@@ -505,6 +505,7 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
       >
         <DatePickerField
           label="New deadline"
+          withTime
           value={newDeadline}
           onChange={setNewDeadline}
           placeholder="Pick a deadline"

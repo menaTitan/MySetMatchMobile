@@ -7,62 +7,104 @@ import { radii, spacing, typography } from '../../theme';
 
 interface Props {
   label: string;
-  /** Date in YYYY-MM-DD form, or empty string when unset. */
+  /**
+   * Stored value. Date-only mode → `YYYY-MM-DD`. Date+time mode (`withTime`)
+   * → ISO string (`2026-06-12T18:30:00.000Z`). Empty string when unset.
+   */
   value: string;
-  onChange: (yyyyMmDd: string) => void;
+  onChange: (next: string) => void;
   placeholder?: string;
   minimumDate?: Date;
   maximumDate?: Date;
-  /** When true, render a small inline trigger instead of a full field. */
+  /** Show a time picker after the date picker so the value carries a clock. */
+  withTime?: boolean;
   disabled?: boolean;
 }
 
+function pad(n: number) { return String(n).padStart(2, '0'); }
+
 function toYmd(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function parseYmd(s: string): Date | null {
+/** Parse either YYYY-MM-DD or a full ISO/datetime string. */
+function parseValue(s: string): Date | null {
   if (!s) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (!m) return null;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (ymd) {
+    const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
 }
 
-function format(s: string): string {
-  const d = parseYmd(s);
+function formatDisplay(s: string, withTime: boolean): string {
+  const d = parseValue(s);
   if (!d) return '';
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return withTime
+    ? d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 /**
- * Calendar-backed date field. Tapping the row opens the platform date
- * picker (Android dialog, iOS inline spinner). The value is stored as a
- * plain `YYYY-MM-DD` string so callers can keep using simple form state.
+ * Calendar-backed date (and optional time) field. Tapping the row opens
+ * the platform picker — Android dialog, iOS inline spinner. Stores the
+ * value as `YYYY-MM-DD` or ISO depending on `withTime` so callers can
+ * keep using a plain string in form state.
  */
 export default function DatePickerField({
-  label, value, onChange, placeholder = 'Select date', minimumDate, maximumDate, disabled,
+  label, value, onChange, placeholder, minimumDate, maximumDate, withTime, disabled,
 }: Props) {
   const { theme } = useSport();
-  const [open, setOpen] = useState(false);
+  // Android needs two separate pickers (date, then time) since it has no
+  // combined datetime mode.
+  const [open, setOpen] = useState<null | 'date' | 'time'>(null);
+  // Holds the date the user picked in the first step so the time picker
+  // can combine them when it closes.
+  const [pendingDate, setPendingDate] = useState<Date | null>(null);
 
-  const current = parseYmd(value) ?? new Date();
+  const current = parseValue(value) ?? new Date();
+  const ph = placeholder ?? (withTime ? 'Select date & time' : 'Select date');
 
-  function handleChange(_e: DateTimePickerEvent, picked?: Date) {
-    // Android: the dialog dismisses itself; iOS: the inline spinner stays open
-    // until the user taps Done, so we close on each change-to-confirm flow.
-    if (Platform.OS !== 'ios') setOpen(false);
-    if (picked) onChange(toYmd(picked));
+  function emit(d: Date) {
+    onChange(withTime ? d.toISOString() : toYmd(d));
+  }
+
+  function handleAndroidDate(_e: DateTimePickerEvent, picked?: Date) {
+    setOpen(null);
+    if (!picked) return;
+    if (withTime) {
+      setPendingDate(picked);
+      // Re-open as time picker on the next tick — Android dismisses the
+      // dialog on selection, so we have to chain.
+      setTimeout(() => setOpen('time'), 0);
+    } else {
+      emit(picked);
+    }
+  }
+
+  function handleAndroidTime(_e: DateTimePickerEvent, picked?: Date) {
+    setOpen(null);
+    if (!picked) return;
+    const base = pendingDate ?? current;
+    const merged = new Date(
+      base.getFullYear(), base.getMonth(), base.getDate(),
+      picked.getHours(), picked.getMinutes(), 0, 0,
+    );
+    setPendingDate(null);
+    emit(merged);
+  }
+
+  function handleIosChange(_e: DateTimePickerEvent, picked?: Date) {
+    if (picked) emit(picked);
   }
 
   return (
     <View style={{ marginBottom: spacing.sm + 2 }}>
       <Text style={[typography.smallStrong, { color: theme.textSecondary, marginBottom: 6 }]}>{label}</Text>
       <Pressable
-        onPress={() => !disabled && setOpen(true)}
+        onPress={() => !disabled && setOpen('date')}
         disabled={disabled}
         style={({ pressed }) => [
           styles.row,
@@ -72,7 +114,7 @@ export default function DatePickerField({
       >
         <Ionicons name="calendar-outline" size={18} color={theme.textMuted} style={{ marginRight: 8 }} />
         <Text style={{ flex: 1, color: value ? theme.textPrimary : theme.textMuted, fontSize: 15 }}>
-          {format(value) || placeholder}
+          {formatDisplay(value, !!withTime) || ph}
         </Text>
         <Ionicons name="chevron-down" size={16} color={theme.textMuted} />
       </Pressable>
@@ -81,15 +123,15 @@ export default function DatePickerField({
         <View style={[styles.iosWrap, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
           <DateTimePicker
             value={current}
-            mode="date"
+            mode={withTime ? 'datetime' : 'date'}
             display="inline"
             minimumDate={minimumDate}
             maximumDate={maximumDate}
-            onChange={handleChange}
+            onChange={handleIosChange}
             themeVariant="dark"
           />
           <Pressable
-            onPress={() => setOpen(false)}
+            onPress={() => setOpen(null)}
             style={({ pressed }) => [
               styles.doneBtn,
               { backgroundColor: pressed ? theme.accent : theme.primary },
@@ -100,13 +142,22 @@ export default function DatePickerField({
         </View>
       ) : null}
 
-      {open && Platform.OS !== 'ios' ? (
+      {open === 'date' && Platform.OS !== 'ios' ? (
         <DateTimePicker
           value={current}
           mode="date"
           minimumDate={minimumDate}
           maximumDate={maximumDate}
-          onChange={handleChange}
+          onChange={handleAndroidDate}
+        />
+      ) : null}
+
+      {open === 'time' && Platform.OS !== 'ios' ? (
+        <DateTimePicker
+          value={pendingDate ?? current}
+          mode="time"
+          is24Hour={false}
+          onChange={handleAndroidTime}
         />
       ) : null}
     </View>
