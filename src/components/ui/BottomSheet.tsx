@@ -63,10 +63,13 @@ export default function BottomSheet({
               borderTopWidth: 1,
               borderLeftWidth: 1,
               borderRightWidth: 1,
-              maxHeight: tall ? '92%' : '78%',
-              // Lift the entire sheet above the keyboard. paddingBottom rather
-              // than marginBottom so the sheet's background continues behind
-              // the on-screen keyboard area before the layout updates.
+              // Non-scrollable sheets host a FlatList (picker modal, comments)
+              // which needs the sheet to fill its allowed space — content-sized
+              // siblings collapse a flex:1 body to zero height. For scrollable
+              // sheets we let the content size the sheet naturally.
+              ...(scrollable
+                ? { maxHeight: tall ? '92%' : '78%' }
+                : { height: tall ? '92%' : '78%' }),
               marginBottom: keyboardHeight,
             },
           ]}

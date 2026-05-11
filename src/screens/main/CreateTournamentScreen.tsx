@@ -325,7 +325,8 @@ function SheetPicker({
       <FlatList
         data={filtered}
         keyExtractor={(i) => i.id}
-        style={{ maxHeight: 480 }}
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => (
           <Pressable
             style={({ pressed }) => [styles.item, pressed && { backgroundColor: theme.pageBg }]}
