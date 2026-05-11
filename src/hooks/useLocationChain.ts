@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { locationsApi } from '../api';
 
 interface PickerItem { id: string; name: string; }
@@ -42,13 +42,26 @@ export function useLocationChain(opts: UseLocationChainOptions = {}) {
   const [loadingRegions, setLoadingRegions] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
 
+  // Latest regionId, used inside the country effect to avoid wiping pre-loaded
+  // cities when the form mounts with country+region+city all pre-filled.
+  const regionIdRef = useRef(regionId);
+  useEffect(() => { regionIdRef.current = regionId; }, [regionId]);
+
   // Load countries once on mount.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const { data } = await locationsApi.countries();
-        if (!cancelled) setCountries(data);
+        if (!cancelled) {
+          setCountries(data);
+          // Back-fill the country display name when the form was seeded with
+          // only an ID (e.g. Edit Profile pre-fill).
+          if (countryId && !countryName) {
+            const hit = data.find(c => c.id === countryId);
+            if (hit) setCountryName(hit.name);
+          }
+        }
       } catch {}
       finally {
         if (!cancelled) setLoadingCountries(false);
@@ -72,16 +85,29 @@ export function useLocationChain(opts: UseLocationChainOptions = {}) {
         const { data } = await locationsApi.regions(countryId);
         if (cancelled) return;
         setRegions(data);
+        // Back-fill the region display name when seeded with only an ID.
+        if (regionIdRef.current && !regionName) {
+          const hit = data.find(r => r.id === regionIdRef.current);
+          if (hit) setRegionName(hit.name);
+        }
         // If the country has no regions, load cities for the country directly.
         if (data.length === 0) {
           setLoadingCities(true);
           try {
             const { data: c } = await locationsApi.cities(countryId);
-            if (!cancelled) setCities(c);
+            if (!cancelled) {
+              setCities(c);
+              if (cityId && !cityName) {
+                const hit = c.find(x => x.id === cityId);
+                if (hit) setCityName(hit.name);
+              }
+            }
           } finally {
             if (!cancelled) setLoadingCities(false);
           }
-        } else {
+        } else if (!regionIdRef.current) {
+          // Only wipe cities if no region is selected yet. Otherwise the
+          // parallel region-effect is loading them and we'd race.
           setCities([]);
         }
       } catch {}
@@ -100,7 +126,13 @@ export function useLocationChain(opts: UseLocationChainOptions = {}) {
     (async () => {
       try {
         const { data } = await locationsApi.cities(regionId);
-        if (!cancelled) setCities(data);
+        if (cancelled) return;
+        setCities(data);
+        // Back-fill the city display name when seeded with only an ID.
+        if (cityId && !cityName) {
+          const hit = data.find(c => c.id === cityId);
+          if (hit) setCityName(hit.name);
+        }
       } catch {}
       finally {
         if (!cancelled) setLoadingCities(false);

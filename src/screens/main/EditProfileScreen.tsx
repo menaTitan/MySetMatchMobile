@@ -28,7 +28,12 @@ export default function EditProfileScreen({ navigation }: any) {
     handedness: player?.handedness ?? '',
     playStyle: player?.playStyle ?? '',
   });
+  // Seed IDs so the form opens with the chain already populated — without these
+  // the City picker would be disabled until the user re-picks Country.
   const loc = useLocationChain({
+    initialCountryId: player?.countryId,
+    initialRegionId: player?.regionId,
+    initialCityId: player?.cityId,
     initialCountryName: player?.country ?? '',
     initialCityName: player?.city ?? '',
   });

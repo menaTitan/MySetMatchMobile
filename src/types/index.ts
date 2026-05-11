@@ -16,6 +16,9 @@ export interface Player {
   profilePhotoUrl?: string;
   country?: string;
   city?: string;
+  countryId?: string;
+  cityId?: string;
+  regionId?: string;
   globalRating: number;
   countryRating: number;
   handedness?: string;
