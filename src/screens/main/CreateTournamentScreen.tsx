@@ -8,7 +8,7 @@ import { useLocationChain } from '../../hooks/useLocationChain';
 import { useSport } from '../../context/SportContext';
 import type { Sport } from '../../types';
 import { radii, spacing, typography } from '../../theme';
-import { BottomSheet, Button, Card, Input, KeyboardAware, useToast } from '../../components/ui';
+import { BottomSheet, Button, Card, DatePickerField, Input, KeyboardAware, useToast } from '../../components/ui';
 
 const TYPES = ['Local', 'Regional', 'National', 'International'] as const;
 const FORMATS = ['SingleElimination', 'RoundRobin', 'Mixed'] as const;
@@ -140,19 +140,18 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
         </Card>
 
         <Card>
-          <Input
-            label="Start date * (YYYY-MM-DD)"
-            leftIcon="calendar-outline"
-            placeholder="2026-06-12"
+          <DatePickerField
+            label="Start date *"
             value={form.startDate}
-            onChangeText={v => setForm(f => ({ ...f, startDate: v }))}
+            onChange={v => setForm(f => ({ ...f, startDate: v, endDate: f.endDate && f.endDate < v ? v : f.endDate }))}
+            placeholder="Pick a start date"
           />
-          <Input
-            label="End date * (YYYY-MM-DD)"
-            leftIcon="calendar-outline"
-            placeholder="2026-06-14"
+          <DatePickerField
+            label="End date *"
             value={form.endDate}
-            onChangeText={v => setForm(f => ({ ...f, endDate: v }))}
+            onChange={v => setForm(f => ({ ...f, endDate: v }))}
+            placeholder="Pick an end date"
+            minimumDate={form.startDate ? new Date(form.startDate) : undefined}
           />
         </Card>
 

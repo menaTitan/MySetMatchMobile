@@ -8,7 +8,7 @@ import type { TournamentDetail } from '../../types';
 import { useSport } from '../../context/SportContext';
 import { useFetchData } from '../../hooks/useFetchData';
 import { radii, spacing, typography } from '../../theme';
-import { Avatar, BottomSheet, Button, Card, Chip, EmptyState, LoadingView, PageHeader, useToast } from '../../components/ui';
+import { Avatar, BottomSheet, Button, Card, Chip, DatePickerField, EmptyState, LoadingView, PageHeader, useToast } from '../../components/ui';
 
 type Tab = 'players' | 'actions';
 
@@ -503,12 +503,12 @@ export default function ManageTournamentScreen({ route, navigation }: any) {
         title="Extend deadline"
         subtitle="Enter the new registration deadline."
       >
-        <TextInput
+        <DatePickerField
+          label="New deadline"
           value={newDeadline}
-          onChangeText={setNewDeadline}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={theme.textMuted}
-          style={[styles.input, { borderColor: theme.border, color: theme.textPrimary }]}
+          onChange={setNewDeadline}
+          placeholder="Pick a deadline"
+          minimumDate={new Date()}
         />
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
           <Button title="Cancel" variant="ghost" onPress={() => setExtendOpen(false)} style={{ flex: 1 }} />

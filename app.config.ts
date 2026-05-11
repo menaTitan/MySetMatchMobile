@@ -56,7 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       softwareKeyboardLayoutMode: 'pan',
     },
     web: { favicon: './assets/favicon.png' },
-    plugins: ['expo-font', 'expo-secure-store', 'expo-web-browser'],
+    plugins: ['expo-font', 'expo-secure-store', 'expo-web-browser', '@react-native-community/datetimepicker'],
     // Injected into the running app via `Constants.expoConfig.extra`.
     extra: {
       apiBaseUrl,

@@ -2,6 +2,7 @@ export { default as AuthScreen } from './AuthScreen';
 export { default as Avatar } from './Avatar';
 export { default as Button } from './Button';
 export { default as Card } from './Card';
+export { default as DatePickerField } from './DatePickerField';
 export { default as Chip } from './Chip';
 export { default as EmptyState } from './EmptyState';
 export { default as ErrorView } from './ErrorView';
