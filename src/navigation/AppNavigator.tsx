@@ -37,6 +37,7 @@ import ProfileScreen from '../screens/main/ProfileScreen';
 import EditProfileScreen from '../screens/main/EditProfileScreen';
 import DeleteAccountScreen from '../screens/main/DeleteAccountScreen';
 import BlockedUsersScreen from '../screens/main/BlockedUsersScreen';
+import SettingsScreen from '../screens/main/SettingsScreen';
 import AssistantScreen from '../screens/main/AssistantScreen';
 import SearchScreen from '../screens/main/SearchScreen';
 import PlayerProfileScreen from '../screens/main/PlayerProfileScreen';
@@ -170,6 +171,7 @@ function ProfileNav() {
         <ProfileStack.Screen name="EditProfile"        component={EditProfileScreen}        options={{ title: 'Edit Profile' }} />
         <ProfileStack.Screen name="DeleteAccount"      component={DeleteAccountScreen}      options={{ title: 'Delete Account' }} />
         <ProfileStack.Screen name="BlockedUsers"       component={BlockedUsersScreen}       options={{ title: 'Blocked Users' }} />
+        <ProfileStack.Screen name="Settings"           component={SettingsScreen}           options={{ title: 'Settings' }} />
         <ProfileStack.Screen name="Assistant"          component={AssistantScreen}          options={{ headerShown: false }} />
         <ProfileStack.Screen name="MatchHistory"       component={MatchHistoryScreen}       options={{ headerShown: false }} />
 

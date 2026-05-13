@@ -32,6 +32,8 @@ export type { AIMessage }   from './aiChat';
 export { pushApi }          from './push';
 export { moderationApi, REPORT_REASONS } from './moderation';
 export type { BlockedUser, ReportableType } from './moderation';
+export { preferencesApi } from './preferences';
+export type { UserPreferences } from './preferences';
 export { adminApi }         from './admin';
 export type {
   AdminStats, AdminUser, AdminUserDetail, AdminPayment,

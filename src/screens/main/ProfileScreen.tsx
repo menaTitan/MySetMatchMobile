@@ -178,6 +178,14 @@ export default function ProfileScreen({ navigation }: any) {
                 onPress={() => navigation.navigate('Contact')}
               />
               <ListRow
+                icon="notifications-outline"
+                title="Notifications & Privacy"
+                subtitle="Email, push, and visibility"
+                showChevron
+                divider
+                onPress={() => navigation.navigate('Settings')}
+              />
+              <ListRow
                 icon="information-circle-outline"
                 title="About"
                 subtitle="Mission, sports"

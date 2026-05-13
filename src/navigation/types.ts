@@ -60,6 +60,7 @@ export type ProfileStackParamList = {
   EditProfile: undefined;
   DeleteAccount: undefined;
   BlockedUsers: undefined;
+  Settings: undefined;
   Assistant: undefined;
   MatchHistory: { playerId?: string } | undefined;
   AdminHome: undefined;
