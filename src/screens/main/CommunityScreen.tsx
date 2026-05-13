@@ -397,6 +397,8 @@ function ManageGroupsSheet({
   visible, onClose, navigation, startInCreate,
 }: { visible: boolean; onClose: () => void; navigation: any; startInCreate?: boolean }) {
   const { theme } = useSport();
+  const { isAdmin, isOrganizer } = useAuth();
+  const canCreate = isAdmin || isOrganizer;
   const [groups, setGroups] = useState<PrivateGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [createMode, setCreateMode] = useState(false);
@@ -405,10 +407,11 @@ function ManageGroupsSheet({
   const [creating, setCreating] = useState(false);
 
   // When opened via the dashboard's "Create Club" tile, jump straight to the
-  // create form instead of the group list.
+  // create form instead of the group list — but only if the caller actually
+  // has the role; otherwise the backend would reject the POST anyway.
   React.useEffect(() => {
-    if (visible && startInCreate) setCreateMode(true);
-  }, [visible, startInCreate]);
+    if (visible && startInCreate && canCreate) setCreateMode(true);
+  }, [visible, startInCreate, canCreate]);
 
   const load = useCallback(async () => {
     try {
@@ -486,15 +489,17 @@ function ManageGroupsSheet({
         </>
       ) : (
         <>
-          <Button
-            title="New Group"
-            variant="primary"
-            size="md"
-            fullWidth
-            leftIcon="add-outline"
-            onPress={() => setCreateMode(true)}
-            style={{ marginBottom: spacing.base }}
-          />
+          {canCreate ? (
+            <Button
+              title="New Group"
+              variant="primary"
+              size="md"
+              fullWidth
+              leftIcon="add-outline"
+              onPress={() => setCreateMode(true)}
+              style={{ marginBottom: spacing.base }}
+            />
+          ) : null}
 
           {loading ? (
             <Text style={[typography.small, { color: theme.textMuted, textAlign: 'center', paddingVertical: spacing.lg }]}>
