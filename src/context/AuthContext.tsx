@@ -19,6 +19,10 @@ interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updatePlayer: (player: Player) => void;
+  /** Store an AuthResponse and mark the user signed in. Player may be null
+   *  when the user just verified their email but hasn't completed profile
+   *  creation yet — the root navigator routes them to CreateProfile. */
+  applyAuthResponse: (data: { accessToken: string; refreshToken: string; player: Player | null }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -90,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     restoreSession();
   }, []);
 
-  function authedState(player: Player, token: string): AuthState {
+  function authedState(player: Player | null, token: string): AuthState {
     const roles = rolesFromToken(token);
     return {
       player,
@@ -107,8 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await SecureStore.getItemAsync('accessToken');
       const playerJson = await SecureStore.getItemAsync('player');
-      if (token && playerJson) {
-        setState(authedState(JSON.parse(playerJson), token));
+      if (token) {
+        // playerJson may be missing or literally "null" if the user
+        // verified email but never completed profile creation.
+        const parsed = playerJson ? JSON.parse(playerJson) : null;
+        setState(authedState(parsed, token));
       } else {
         setState({ player: null, userId: null, roles: [], isLoading: false, isAuthenticated: false, isAdmin: false, isOrganizer: false });
       }
@@ -119,6 +126,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function login(email: string, password: string) {
     const { data } = await authApi.login(email, password);
+    await applyAuthResponse(data);
+  }
+
+  async function applyAuthResponse(data: { accessToken: string; refreshToken: string; player: Player | null }) {
     await SecureStore.setItemAsync('accessToken', data.accessToken);
     await SecureStore.setItemAsync('refreshToken', data.refreshToken);
     await SecureStore.setItemAsync('player', JSON.stringify(data.player));
@@ -142,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, updatePlayer }}>
+    <AuthContext.Provider value={{ ...state, login, logout, updatePlayer, applyAuthResponse }}>
       {children}
     </AuthContext.Provider>
   );

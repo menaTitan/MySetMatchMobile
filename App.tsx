@@ -52,10 +52,17 @@ function SplashScreen({ message }: { message?: string }) {
 }
 
 function RootNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, player } = useAuth();
   usePushNotifications();
   if (isLoading) return <SplashScreen />;
-  return isAuthenticated ? <AppNavigator /> : <AuthNavigator />;
+  // Three states:
+  //   - Not signed in → Auth flow
+  //   - Signed in but no Player yet (just verified email) → Auth flow lands
+  //     on CreateProfile so the user finishes onboarding before the main app
+  //   - Signed in with Player → Main app
+  if (!isAuthenticated) return <AuthNavigator />;
+  if (!player) return <AuthNavigator initialRouteName="CreateProfile" />;
+  return <AppNavigator />;
 }
 
 export default function App() {
