@@ -28,8 +28,26 @@ export default function RegisterScreen({ navigation }: any) {
   }
 
   async function handleRegister() {
-    if (!form.email || !form.password || !form.name) {
-      Alert.alert('Missing info', 'Name, email and password are required');
+    if (!form.email.trim() || !form.password || !form.name.trim()) {
+      Alert.alert('Missing info', 'Name, email and password are required.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+    if (form.password.length < 6) {
+      Alert.alert('Password too short', 'Password must be at least 6 characters.');
+      return;
+    }
+    // Backend requires a country and city for every Player row, so we can't
+    // submit empty Guids — guide the user to pick before continuing.
+    if (!loc.countryId) {
+      Alert.alert('Missing country', 'Please select your country.');
+      return;
+    }
+    if (!loc.cityId) {
+      Alert.alert('Missing city', 'Please select your city.');
       return;
     }
     setLoading(true);
@@ -44,7 +62,7 @@ export default function RegisterScreen({ navigation }: any) {
       await login(form.email.trim().toLowerCase(), form.password);
     } catch (err: any) {
       const errors = err?.response?.data?.errors;
-      const msg = errors ? errors.join('\n') : (err?.response?.data?.message ?? 'Registration failed');
+      const msg = errors ? errors.join('\n') : (err?.response?.data?.message ?? 'Registration failed. Please try again.');
       Alert.alert('Error', msg);
     } finally {
       setLoading(false);
@@ -87,8 +105,8 @@ export default function RegisterScreen({ navigation }: any) {
         />
 
         <PickerField
-          label="Country"
-          placeholder="Select country (optional)"
+          label="Country *"
+          placeholder="Select country"
           value={loc.countryName}
           icon="earth-outline"
           onPress={() => setCountryModal(true)}
@@ -103,13 +121,13 @@ export default function RegisterScreen({ navigation }: any) {
           />
         ) : null}
         <PickerField
-          label="City"
+          label="City *"
           placeholder={
             !loc.countryId
               ? 'Choose country first'
               : loc.hasRegions && !loc.regionId
                 ? 'Choose state first'
-                : 'Select city (optional)'
+                : 'Select city'
           }
           value={loc.cityName}
           icon="location-outline"
