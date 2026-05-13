@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert, FlatList, Pressable, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { authApi, playerApi } from '../../api';
+import { authApi, playerApi, sportsApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useLocationChain } from '../../hooks/useLocationChain';
+import type { Sport } from '../../types';
 import { DEFAULT_THEME, radii, spacing, typography } from '../../theme';
-import { AuthScreen, BottomSheet, Button, Chip, Input } from '../../components/ui';
+import { AuthScreen, BottomSheet, Button, Chip, Input, SportIcon } from '../../components/ui';
 
 const T = DEFAULT_THEME;
 
@@ -30,16 +31,34 @@ export default function CreateProfileScreen({ navigation, route }: any) {
   const [skill, setSkill] = useState<string | null>(null);
   const [hand, setHand] = useState<string | null>(null);
   const [style, setStyle] = useState<string | null>(null);
+  const [sports, setSports] = useState<Sport[]>([]);
+  const [selectedSports, setSelectedSports] = useState<Set<string>>(new Set());
   const loc = useLocationChain();
   const [loading, setLoading] = useState(false);
   const [countryModal, setCountryModal] = useState(false);
   const [regionModal, setRegionModal] = useState(false);
   const [cityModal, setCityModal] = useState(false);
 
+  useEffect(() => {
+    sportsApi.list().then((r) => setSports(r.data)).catch(() => {});
+  }, []);
+
+  function toggleSport(id: string) {
+    setSelectedSports((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
   async function handleCreate() {
     if (!name.trim()) { Alert.alert('Missing info', 'Please enter your full name.'); return; }
     if (!loc.countryId) { Alert.alert('Missing country', 'Please select your country.'); return; }
     if (!loc.cityId) { Alert.alert('Missing city', 'Please select your city.'); return; }
+    if (selectedSports.size === 0) {
+      Alert.alert('Pick a sport', 'Choose at least one sport you\'re interested in.');
+      return;
+    }
     setLoading(true);
     try {
       await authApi.createProfile({
@@ -47,6 +66,7 @@ export default function CreateProfileScreen({ navigation, route }: any) {
         countryId: loc.countryId,
         cityId: loc.cityId,
         skillLevel: skill ?? undefined,
+        sportIds: Array.from(selectedSports),
       });
       // Persist handedness / play style on the new Player row if chosen.
       if (hand || style) {
@@ -122,6 +142,40 @@ export default function CreateProfileScreen({ navigation, route }: any) {
             if (loc.countryId) setCityModal(true);
           }}
         />
+
+        <Text style={[typography.smallStrong, { color: T.textSecondary, marginTop: spacing.base, marginBottom: 6 }]}>
+          Sports you play *
+        </Text>
+        <Text style={[typography.small, { color: T.textMuted, marginBottom: spacing.xs + 2 }]}>
+          Pick one or more. We'll surface tournaments, leaderboards, and feeds for these.
+        </Text>
+        <View style={styles.sportGrid}>
+          {sports.map((s) => {
+            const active = selectedSports.has(s.id);
+            return (
+              <Pressable
+                key={s.id}
+                onPress={() => toggleSport(s.id)}
+                style={({ pressed }) => [
+                  styles.sportChip,
+                  {
+                    backgroundColor: active ? T.primary : T.cardBg,
+                    borderColor: active ? T.primary : T.border,
+                  },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <SportIcon icon={s.icon} size={18} color={active ? '#fff' : T.textPrimary} />
+                <Text style={[
+                  typography.smallStrong,
+                  { color: active ? '#fff' : T.textPrimary },
+                ]}>
+                  {s.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         <Text style={[typography.smallStrong, { color: T.textSecondary, marginTop: spacing.base, marginBottom: 6 }]}>
           Skill level
@@ -249,6 +303,12 @@ function PickerModal({
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  sportGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  sportChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: radii.md, borderWidth: 1.5,
+  },
   pickerRow: {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1.5, borderRadius: radii.md,

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
 import { authApi } from '../../api';
-import { useAuth } from '../../context/AuthContext';
 import { DEFAULT_THEME, spacing, typography } from '../../theme';
 import { AuthScreen, Button, Input } from '../../components/ui';
 
@@ -14,7 +13,6 @@ const T = DEFAULT_THEME;
  * VerifyEmailScreen and then CreateProfileScreen.
  */
 export default function RegisterScreen({ navigation }: any) {
-  const { applyAuthResponse } = useAuth();
   const [form, setForm] = useState({ email: '', password: '', name: '' });
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -41,19 +39,13 @@ export default function RegisterScreen({ navigation }: any) {
     setLoading(true);
     try {
       const { data } = await authApi.register({ email, password: form.password, name });
-      // Sign the user in immediately so the rest of the flow isn't blocked
-      // on email delivery. Email verification becomes an optional next step.
-      await applyAuthResponse({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-        player: data.player ?? null,
-      });
+      // Email verification is required. Client must enter the 6-digit code
+      // before getting auth tokens.
       navigation.replace('VerifyEmail', {
         userId: data.userId,
         email,
         name,
         resent: data.resent === true,
-        canSkip: true,
       });
     } catch (err: any) {
       const errors = err?.response?.data?.errors;

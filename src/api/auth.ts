@@ -2,11 +2,10 @@ import api from './client';
 import type { AuthResponse } from '../types';
 
 /**
- * Register response. The backend issues auth tokens immediately so the user
- * isn't blocked on email delivery — verification is a follow-up step the
- * user can complete from VerifyEmail or skip and verify later from Profile.
+ * Register response. Account is created but email is unconfirmed. Client
+ * must call verifyEmail with the 6-digit code to obtain auth tokens.
  */
-export interface RegisterResponse extends AuthResponse {
+export interface RegisterResponse {
   userId: string;
   needsVerification: true;
   resent?: boolean;
@@ -44,6 +43,8 @@ export const authApi = {
   createProfile: (data: {
     name: string; countryId: string; cityId: string;
     skillLevel?: string; phoneNumber?: string;
+    /** Sports the user is interested in. Each creates a PlayerSport row. */
+    sportIds?: string[];
   }) => api.post<{ playerId: string }>('/auth/create-profile', data),
   /**
    * Permanently delete the signed-in user's account. Backend anonymizes
