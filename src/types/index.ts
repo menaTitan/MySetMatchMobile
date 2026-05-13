@@ -248,9 +248,14 @@ export interface PrivateGroup {
   id: string;
   name: string;
   description?: string;
+  /** "Group" (chat-style) or "Club" (tournament scoping + co-admins). */
+  kind?: 'Group' | 'Club';
   memberCount: number;
   postCount: number;
+  /** True for the creator AND for any promoted club co-admin. */
   isAdmin: boolean;
+  /** True only for the original creator — co-admins are isAdmin but not isCreator. */
+  isCreator?: boolean;
   imageUrl?: string;
   lastPostDate?: string;
 }

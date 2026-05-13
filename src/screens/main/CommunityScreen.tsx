@@ -119,6 +119,7 @@ export default function CommunityScreen({ navigation, route }: any) {
         onClose={() => { setGroupsOpen(false); setAutoCreateClub(false); }}
         navigation={navigation}
         startInCreate={autoCreateClub}
+        startKind={autoCreateClub ? 'Club' : undefined}
       />
     </View>
   );
@@ -394,21 +395,27 @@ function PrivateFeed({ navigation, onManageGroups }: { navigation: any; onManage
 // ── Manage Groups bottom sheet (lists groups, lets user create one) ──────────
 
 function ManageGroupsSheet({
-  visible, onClose, navigation, startInCreate,
-}: { visible: boolean; onClose: () => void; navigation: any; startInCreate?: boolean }) {
+  visible, onClose, navigation, startInCreate, startKind,
+}: { visible: boolean; onClose: () => void; navigation: any; startInCreate?: boolean; startKind?: 'Group' | 'Club' }) {
   const { theme } = useSport();
+  const { isAdmin, isOrganizer } = useAuth();
+  const canCreateClub = isAdmin || isOrganizer;
   const [groups, setGroups] = useState<PrivateGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [createMode, setCreateMode] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupDesc, setGroupDesc] = useState('');
+  const [groupKind, setGroupKind] = useState<'Group' | 'Club'>('Group');
   const [creating, setCreating] = useState(false);
 
   // When opened via the dashboard's "Create Club" tile, jump straight to the
-  // create form instead of the group list.
+  // create form instead of the group list and preselect the requested kind.
   React.useEffect(() => {
-    if (visible && startInCreate) setCreateMode(true);
-  }, [visible, startInCreate]);
+    if (visible && startInCreate) {
+      setCreateMode(true);
+      if (startKind === 'Club' && canCreateClub) setGroupKind('Club');
+    }
+  }, [visible, startInCreate, startKind, canCreateClub]);
 
   const load = useCallback(async () => {
     try {
@@ -425,18 +432,23 @@ function ManageGroupsSheet({
       setCreateMode(false);
       setGroupName('');
       setGroupDesc('');
+      setGroupKind('Group');
     }
   }, [visible, load]);
 
   async function createGroup() {
-    if (!groupName.trim()) { Alert.alert('Error', 'Group name is required'); return; }
+    if (!groupName.trim()) { Alert.alert('Error', 'Name is required'); return; }
     setCreating(true);
     try {
-      await privateGroupsApi.createGroup({ name: groupName.trim(), description: groupDesc.trim() || undefined });
-      setGroupName(''); setGroupDesc(''); setCreateMode(false);
+      await privateGroupsApi.createGroup({
+        name: groupName.trim(),
+        description: groupDesc.trim() || undefined,
+        kind: groupKind,
+      });
+      setGroupName(''); setGroupDesc(''); setGroupKind('Group'); setCreateMode(false);
       load();
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message ?? 'Could not create group');
+      Alert.alert('Error', err?.response?.data?.message ?? 'Could not create');
     } finally { setCreating(false); }
   }
 
@@ -444,13 +456,34 @@ function ManageGroupsSheet({
     <BottomSheet
       visible={visible}
       onClose={onClose}
-      title={createMode ? 'New Group' : 'My Groups'}
+      title={createMode ? (groupKind === 'Club' ? 'New Club' : 'New Group') : 'My Groups'}
       tall
     >
       {createMode ? (
         <>
+          {canCreateClub ? (
+            <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm }}>
+              {(['Group', 'Club'] as const).map((k) => (
+                <Chip
+                  key={k}
+                  label={k}
+                  color={groupKind === k ? 'primary' : 'muted'}
+                  variant={groupKind === k ? 'solid' : 'soft'}
+                  onPress={() => setGroupKind(k)}
+                  leadingEmoji={k === 'Club' ? '🏆' : '💬'}
+                />
+              ))}
+            </View>
+          ) : null}
+          {canCreateClub ? (
+            <Text style={[typography.small, { color: theme.textMuted, marginBottom: spacing.sm }]}>
+              {groupKind === 'Club'
+                ? 'Club: tournaments can be scoped to it and you can promote co-admins.'
+                : 'Group: chat-style private feed for invited people.'}
+            </Text>
+          ) : null}
           <Input
-            label="Group name *"
+            label={`${groupKind} name *`}
             leftIcon="people-outline"
             placeholder="e.g. Brentwood TT Club"
             value={groupName}
@@ -458,14 +491,14 @@ function ManageGroupsSheet({
           />
           <Input
             label="Description (optional)"
-            placeholder="What is this group about?"
+            placeholder="What is this for?"
             value={groupDesc}
             onChangeText={setGroupDesc}
             multiline
             numberOfLines={3}
           />
           <Button
-            title="Create Group"
+            title={`Create ${groupKind}`}
             variant="primary"
             size="lg"
             fullWidth

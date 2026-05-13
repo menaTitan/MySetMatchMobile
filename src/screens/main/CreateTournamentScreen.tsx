@@ -50,8 +50,10 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
     sportsApi.list().then(r => setSports(r.data)).catch(() => {});
     // Load clubs the user owns so they can scope the tournament. Members
     // (non-admins) can't restrict to clubs they didn't create.
+    // Only Clubs can host tournaments, and only the ones the user can manage
+    // (creator OR co-admin — backend returns isAdmin=true for both).
     privateGroupsApi.myGroups().then(r => {
-      setMyClubs(r.data.filter(g => g.isAdmin));
+      setMyClubs(r.data.filter(g => g.isAdmin && g.kind === 'Club'));
     }).catch(() => {});
   }, []);
 

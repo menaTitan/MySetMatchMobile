@@ -33,8 +33,12 @@ export interface OutgoingInvitation {
 
 export const privateGroupsApi = {
   myGroups: () => api.get<PrivateGroup[]>('/privategroups/my'),
-  createGroup: (data: { name: string; description?: string; sportId?: string }) =>
+  createGroup: (data: { name: string; description?: string; sportId?: string; kind?: 'Group' | 'Club' }) =>
     api.post<PrivateGroup>('/privategroups', data),
+  promoteClubAdmin: (groupId: string, userId: string) =>
+    api.post<{ id: string; promoted?: boolean; alreadyAdmin?: boolean }>(`/privategroups/${groupId}/admins`, { userId }),
+  demoteClubAdmin: (groupId: string, userId: string) =>
+    api.delete(`/privategroups/${groupId}/admins/${userId}`),
   rename: (groupId: string, name: string) =>
     api.put(`/privategroups/${groupId}`, { name }),
   deleteGroup: (groupId: string) =>
