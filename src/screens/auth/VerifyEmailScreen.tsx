@@ -14,8 +14,8 @@ const CODE_LENGTH = 6;
  * CreateProfile to finish onboarding.
  */
 export default function VerifyEmailScreen({ navigation, route }: any) {
-  const { userId, email, name, resent } = route.params ?? {};
-  const { applyAuthResponse } = useAuth();
+  const { userId, email, name, resent, canSkip } = route.params ?? {};
+  const { applyAuthResponse, player } = useAuth();
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const inputs = useRef<Array<TextInput | null>>([]);
   const [verifying, setVerifying] = useState(false);
@@ -74,9 +74,14 @@ export default function VerifyEmailScreen({ navigation, route }: any) {
     try {
       const { data } = await authApi.verifyEmail({ userId, code: value });
       await applyAuthResponse(data);
-      // No Player yet — route to CreateProfile to finish onboarding. We pass
-      // the name so the CreateProfile form can pre-fill it.
-      navigation.replace('CreateProfile', { name, fromVerification: true });
+      // After verifying, route to CreateProfile if the user hasn't created
+      // one yet, otherwise drop them into the main app. The root navigator
+      // also handles this automatically based on player state.
+      if (data.player) {
+        // Player already exists (re-verifying an old session) — nothing to do.
+      } else {
+        navigation.replace('CreateProfile', { name, fromVerification: true });
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Invalid code. Please try again.';
       Alert.alert('Verification failed', msg);
@@ -132,6 +137,26 @@ export default function VerifyEmailScreen({ navigation, route }: any) {
         rightIcon="arrow-forward"
         style={{ marginTop: spacing.lg }}
       />
+
+      {canSkip ? (
+        <Button
+          title="Skip for now"
+          onPress={() => {
+            // Caller is already signed in (Register issues tokens up-front)
+            // — just move on. They can verify later from Profile.
+            if (player) {
+              navigation.getParent()?.goBack?.();
+            } else {
+              navigation.replace('CreateProfile', { name });
+            }
+          }}
+          variant="ghost"
+          size="md"
+          fullWidth
+          uppercase={false}
+          style={{ marginTop: spacing.sm }}
+        />
+      ) : null}
 
       <Pressable onPress={resend} disabled={resending || cooldown > 0} style={styles.resend}>
         <Text style={[typography.small, { color: cooldown > 0 ? T.textMuted : T.primary, fontWeight: '700' }]}>

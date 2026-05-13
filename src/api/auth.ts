@@ -1,9 +1,12 @@
 import api from './client';
 import type { AuthResponse } from '../types';
 
-/** Response from the new two-step register: account is created but email
- *  is unconfirmed. Client must call verifyEmail next. */
-export interface RegisterResponse {
+/**
+ * Register response. The backend issues auth tokens immediately so the user
+ * isn't blocked on email delivery — verification is a follow-up step the
+ * user can complete from VerifyEmail or skip and verify later from Profile.
+ */
+export interface RegisterResponse extends AuthResponse {
   userId: string;
   needsVerification: true;
   resent?: boolean;
