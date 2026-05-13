@@ -186,6 +186,15 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
           <Chip label={data.status} color={statusColor} variant="soft" size="sm" />
           {data.sportName && <Chip label={data.sportName} color="primary" variant="soft" size="sm" />}
           {data.isDoubles && <Chip label="Doubles" color="accent" variant="soft" size="sm" leadingEmoji="👥" />}
+          {data.privateFeedId && (
+            <Chip
+              label={data.privateFeedName ?? 'Private'}
+              color="muted"
+              variant="solid"
+              size="sm"
+              leadingEmoji="🔒"
+            />
+          )}
         </View>
 
         <Card style={{ marginBottom: spacing.base }}>

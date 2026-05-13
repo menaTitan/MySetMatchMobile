@@ -40,10 +40,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.mysetmatch.mobile',
+      bundleIdentifier: 'com.mysetmatch.app',
+      // Declares the app uses only standard/exempt encryption so App Store
+      // submission skips the annual export-compliance prompt.
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+      },
     },
     android: {
-      package: 'com.mysetmatch.mobile',
+      package: 'com.mysetmatch.app',
       versionCode: 1,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',

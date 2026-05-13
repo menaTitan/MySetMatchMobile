@@ -3,7 +3,8 @@ import {
   View, Text, StyleSheet, Pressable, FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { tournamentsApi, sportsApi } from '../../api';
+import { tournamentsApi, sportsApi, privateGroupsApi } from '../../api';
+import type { PrivateGroup } from '../../types';
 import { useLocationChain } from '../../hooks/useLocationChain';
 import { useSport } from '../../context/SportContext';
 import type { Sport } from '../../types';
@@ -22,6 +23,7 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
   const isEdit = !!editingId;
 
   const [sports, setSports] = useState<Sport[]>([]);
+  const [myClubs, setMyClubs] = useState<PrivateGroup[]>([]);
   const loc = useLocationChain();
 
   const [form, setForm] = useState({
@@ -37,13 +39,20 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
     maxParticipants: '',
     entryFee: '',
     isDoubles: false,
+    privateFeedId: '',
+    privateFeedName: '',
   });
 
-  const [modal, setModal] = useState<null | 'sport' | 'type' | 'format' | 'country' | 'region' | 'city'>(null);
+  const [modal, setModal] = useState<null | 'sport' | 'type' | 'format' | 'country' | 'region' | 'city' | 'club'>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     sportsApi.list().then(r => setSports(r.data)).catch(() => {});
+    // Load clubs the user owns so they can scope the tournament. Members
+    // (non-admins) can't restrict to clubs they didn't create.
+    privateGroupsApi.myGroups().then(r => {
+      setMyClubs(r.data.filter(g => g.isAdmin));
+    }).catch(() => {});
   }, []);
 
   // When editing, pull current values into the form. We rely on the detail
@@ -70,6 +79,8 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
           maxParticipants: (t as any).maxPlayers != null ? String((t as any).maxPlayers) : '',
           entryFee: (t as any).entryFee != null ? String((t as any).entryFee) : '',
           isDoubles: !!(t as any).isDoubles,
+          privateFeedId: (t as any).privateFeedId ?? '',
+          privateFeedName: (t as any).privateFeedName ?? '',
         }));
         // Detail endpoint only returns names (not IDs) for country/city — pre-fill
         // the display labels so the form looks populated. The user must re-pick
@@ -111,6 +122,7 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
       maxParticipants: form.maxParticipants ? parseInt(form.maxParticipants) : undefined,
       entryFee: form.entryFee ? parseFloat(form.entryFee) : undefined,
       isDoubles: form.isDoubles,
+      privateFeedId: form.privateFeedId || undefined,
     };
     try {
       if (isEdit && editingId) {
@@ -213,6 +225,15 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
               Doubles tournament
             </Text>
           </Pressable>
+
+          {myClubs.length > 0 ? (
+            <PickerRow
+              label="Restrict to club"
+              value={form.privateFeedName || 'Public — anyone can see'}
+              icon="lock-closed-outline"
+              onPress={() => setModal('club')}
+            />
+          ) : null}
         </Card>
 
         <Button
@@ -269,6 +290,13 @@ export default function CreateTournamentScreen({ navigation, route }: any) {
         items={loc.cities}
         searchable
         onSelect={(i) => { loc.setCity(i); setModal(null); }}
+        onClose={() => setModal(null)}
+      />
+      <SheetPicker
+        visible={modal === 'club'}
+        title="Restrict to club"
+        items={[{ id: '', name: 'Public — anyone can see' }, ...myClubs.map(c => ({ id: c.id, name: c.name }))]}
+        onSelect={(i) => { setForm(f => ({ ...f, privateFeedId: i.id, privateFeedName: i.id ? i.name : '' })); setModal(null); }}
         onClose={() => setModal(null)}
       />
     </>

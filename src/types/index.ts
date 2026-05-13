@@ -68,6 +68,9 @@ export interface TournamentSummary {
   registeredCount: number;
   maxPlayers?: number;
   isRegistered: boolean;
+  /** Set when the tournament is scoped to a club / private group. */
+  privateFeedId?: string;
+  privateFeedName?: string;
 }
 
 export interface TournamentDetail extends TournamentSummary {

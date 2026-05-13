@@ -19,6 +19,8 @@ export interface CreateTournamentPayload {
   entryFee?: number;
   currency?: string;
   isDoubles?: boolean;
+  /** When set, only members of this club / private group can see the tournament. */
+  privateFeedId?: string;
 }
 
 export interface RegistrationRow {

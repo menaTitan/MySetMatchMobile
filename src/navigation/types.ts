@@ -37,6 +37,7 @@ export type CommunityStackParamList = {
   CommunityHome: undefined;
   GroupDetail: { groupId: string; groupName: string };
   GroupMembers: { groupId: string; name?: string };
+  Invitations: undefined;
   ChatList: undefined;
   ChatRoom: { roomId: string; title?: string };
   NewChat: undefined;

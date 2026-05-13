@@ -23,6 +23,20 @@ export default function CommunityScreen({ navigation }: any) {
   const { theme } = useSport();
   const [tab, setTab] = useState<Tab>('public');
   const [groupsOpen, setGroupsOpen] = useState(false);
+  const [inviteCount, setInviteCount] = useState(0);
+
+  // Poll pending invitations every time the screen regains focus so the
+  // badge stays current after the user accepts/declines elsewhere.
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await privateGroupsApi.myInvitations();
+        if (!cancelled) setInviteCount(data.length);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []));
 
   return (
     <View style={[styles.root, { backgroundColor: theme.pageBg }]}>
@@ -32,6 +46,22 @@ export default function CommunityScreen({ navigation }: any) {
         subtitle="Connect with players & share updates"
         right={
           <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable
+              onPress={() => navigation.navigate('Invitations')}
+              style={({ pressed }) => [
+                styles.iconBtn,
+                { backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.22)' },
+                pressed && { opacity: 0.8 },
+              ]}
+              hitSlop={6}
+            >
+              <Ionicons name="mail-outline" size={16} color="#fff" />
+              {inviteCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{inviteCount > 9 ? '9+' : inviteCount}</Text>
+                </View>
+              ) : null}
+            </Pressable>
             <Pressable
               onPress={() => setGroupsOpen(true)}
               style={({ pressed }) => [
@@ -511,6 +541,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
+  badge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: '#EF4444', // dangerRed — visible on accent header
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
   privateBanner: {
     flexDirection: 'row',

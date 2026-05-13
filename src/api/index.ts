@@ -19,7 +19,7 @@ export type { ReactionKind, ReactionsBreakdown, ReactionUser, MentionUser, PostV
 export { marketplaceApi }   from './marketplace';
 export type { UpdateListingPayload } from './marketplace';
 export { privateGroupsApi } from './privateGroups';
-export type { GroupMember } from './privateGroups';
+export type { GroupMember, IncomingInvitation, OutgoingInvitation } from './privateGroups';
 export { chatApi }          from './chat';
 export type { ChatParticipantDto, ChatRoomDto, ChatMessageDto, SuggestedUser } from './chat';
 export { searchApi }        from './search';

@@ -22,6 +22,7 @@ import MatchHistoryScreen from '../screens/main/MatchHistoryScreen';
 import CommunityScreen from '../screens/main/CommunityScreen';
 import GroupDetailScreen from '../screens/main/GroupDetailScreen';
 import GroupMembersScreen from '../screens/main/GroupMembersScreen';
+import InvitationsScreen from '../screens/main/InvitationsScreen';
 import ChatListScreen from '../screens/main/ChatListScreen';
 import ChatRoomScreen from '../screens/main/ChatRoomScreen';
 import NewChatScreen from '../screens/main/NewChatScreen';
@@ -132,6 +133,7 @@ function CommunityNav() {
           options={({ route }: any) => ({ title: route.params?.groupName ?? 'Group' })}
         />
         <CommunityStack.Screen name="GroupMembers"      component={GroupMembersScreen}      options={{ headerShown: false }} />
+        <CommunityStack.Screen name="Invitations"       component={InvitationsScreen}       options={{ title: 'Invitations' }} />
         <CommunityStack.Screen name="ChatList"          component={ChatListScreen}          options={{ headerShown: false }} />
         <CommunityStack.Screen name="ChatRoom"          component={ChatRoomScreen}          options={{ title: 'Chat' }} />
         <CommunityStack.Screen name="NewChat"           component={NewChatScreen}           options={{ title: 'New Message' }} />
