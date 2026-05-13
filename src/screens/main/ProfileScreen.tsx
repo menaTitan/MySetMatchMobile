@@ -214,6 +214,12 @@ export default function ProfileScreen({ navigation }: any) {
                 divider
                 onPress={() => navigation.navigate('Refunds')}
               />
+              <ListRow
+                icon="ban-outline"
+                title="Blocked Users"
+                showChevron
+                onPress={() => navigation.navigate('BlockedUsers')}
+              />
             </View>
           </Card>
 

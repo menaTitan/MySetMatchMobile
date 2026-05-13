@@ -30,6 +30,8 @@ export type { PaymentRow }  from './payments';
 export { aiChatApi }        from './aiChat';
 export type { AIMessage }   from './aiChat';
 export { pushApi }          from './push';
+export { moderationApi, REPORT_REASONS } from './moderation';
+export type { BlockedUser, ReportableType } from './moderation';
 export { adminApi }         from './admin';
 export type {
   AdminStats, AdminUser, AdminUserDetail, AdminPayment,

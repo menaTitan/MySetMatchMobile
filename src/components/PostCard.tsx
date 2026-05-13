@@ -32,6 +32,9 @@ interface Props {
   onEdit?: () => void;
   onDelete?: () => void;
   onAuthorPress?: () => void;
+  /** Apple Guideline 1.2: non-owners can report or block. */
+  onReport?: () => void;
+  onBlockAuthor?: () => void;
 }
 
 const REACTION_META: Record<ReactionKind, { emoji: string; color: string; label: string }> = {
@@ -41,7 +44,7 @@ const REACTION_META: Record<ReactionKind, { emoji: string; color: string; label:
 };
 
 export default function PostCard({
-  post, isOwner, onReact, onComment, onEdit, onDelete, onAuthorPress,
+  post, isOwner, onReact, onComment, onEdit, onDelete, onAuthorPress, onReport, onBlockAuthor,
 }: Props) {
   const { theme } = useSport();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -79,20 +82,29 @@ export default function PostCard({
             </Text>
           </View>
         ) : null}
-        {isOwner ? (
-          <View style={{ position: 'relative' }}>
-            <Pressable onPress={() => setMenuOpen((x) => !x)} hitSlop={8} style={{ padding: 4 }}>
-              <Ionicons name="ellipsis-horizontal" size={18} color={theme.textMuted} />
-            </Pressable>
-            {menuOpen ? (
+        {/* Kebab is always present — owners get Edit/Delete, everyone else
+            gets Report/Block so Apple Guideline 1.2 surfaces are reachable
+            from every post. */}
+        <View style={{ position: 'relative' }}>
+          <Pressable onPress={() => setMenuOpen((x) => !x)} hitSlop={8} style={{ padding: 4 }}>
+            <Ionicons name="ellipsis-horizontal" size={18} color={theme.textMuted} />
+          </Pressable>
+          {menuOpen ? (
+            isOwner ? (
               <OwnerMenu
                 onEdit={() => { setMenuOpen(false); onEdit?.(); }}
                 onDelete={() => { setMenuOpen(false); onDelete?.(); }}
                 onClose={() => setMenuOpen(false)}
               />
-            ) : null}
-          </View>
-        ) : null}
+            ) : (
+              <ViewerMenu
+                onReport={() => { setMenuOpen(false); onReport?.(); }}
+                onBlock={() => { setMenuOpen(false); onBlockAuthor?.(); }}
+                onClose={() => setMenuOpen(false)}
+              />
+            )
+          ) : null}
+        </View>
       </View>
 
       <Text style={[typography.body, { color: theme.textPrimary, marginTop: spacing.sm }]}>
@@ -176,6 +188,28 @@ function OwnerMenu({
         <Pressable style={ownerStyles.item} onPress={onDelete}>
           <Ionicons name="trash-outline" size={16} color={theme.dangerRed} />
           <Text style={[typography.smallStrong, { color: theme.dangerRed }]}>Delete</Text>
+        </Pressable>
+      </View>
+    </>
+  );
+}
+
+function ViewerMenu({
+  onReport, onBlock, onClose,
+}: { onReport: () => void; onBlock: () => void; onClose: () => void }) {
+  const { theme } = useSport();
+  return (
+    <>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <View style={[ownerStyles.tray, { backgroundColor: theme.cardBg }, shadows.lg]}>
+        <Pressable style={ownerStyles.item} onPress={onReport}>
+          <Ionicons name="flag-outline" size={16} color={theme.textPrimary} />
+          <Text style={[typography.smallStrong, { color: theme.textPrimary }]}>Report post</Text>
+        </Pressable>
+        <View style={[ownerStyles.divider, { backgroundColor: theme.divider }]} />
+        <Pressable style={ownerStyles.item} onPress={onBlock}>
+          <Ionicons name="ban-outline" size={16} color={theme.dangerRed} />
+          <Text style={[typography.smallStrong, { color: theme.dangerRed }]}>Block user</Text>
         </Pressable>
       </View>
     </>

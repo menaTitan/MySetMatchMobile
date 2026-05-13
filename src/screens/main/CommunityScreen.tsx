@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { feedApi, privateGroupsApi } from '../../api';
+import { feedApi, privateGroupsApi, moderationApi } from '../../api';
 import { useSport } from '../../context/SportContext';
 import type { FeedPost, PrivateGroup, PrivatePost } from '../../types';
 import SportPickerBar from '../../components/SportPickerBar';
@@ -13,6 +13,7 @@ import PostCard from '../../components/PostCard';
 import Composer from '../../components/Composer';
 import CommentSheet from '../../components/CommentSheet';
 import EditPostSheet from '../../components/EditPostSheet';
+import ReportSheet from '../../components/ReportSheet';
 import { useAuth } from '../../context/AuthContext';
 import { radii, shadows, spacing, typography } from '../../theme';
 import { Avatar, BottomSheet, Button, Card, Chip, EmptyState, HeroHeader, Input, LoadingView, SegmentedTabs } from '../../components/ui';
@@ -137,6 +138,7 @@ function PublicFeed() {
   const [posting, setPosting] = useState(false);
   const [commentPost, setCommentPost] = useState<FeedPost | null>(null);
   const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
+  const [reportPost, setReportPost] = useState<FeedPost | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -191,6 +193,28 @@ function PublicFeed() {
     ]);
   }
 
+  function confirmBlock(post: FeedPost) {
+    const authorId = (post as any).authorId as string | undefined;
+    const authorName = post.authorName || 'this user';
+    if (!authorId) return;
+    Alert.alert(
+      `Block ${authorName}?`,
+      "You won't see their posts anymore and we'll flag the account for review. This can be undone in Profile → Blocked Users.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Block', style: 'destructive', onPress: async () => {
+          try {
+            await moderationApi.block(authorId);
+            // Instantly drop their posts from this feed per Apple's rule.
+            setPosts((prev) => prev.filter((p) => (p as any).authorId !== authorId));
+          } catch (err: any) {
+            Alert.alert('Failed', err?.response?.data?.message ?? 'Could not block.');
+          }
+        } },
+      ],
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <SportPickerBar />
@@ -214,6 +238,8 @@ function PublicFeed() {
               onComment={() => setCommentPost(item)}
               onEdit={() => setEditingPost(item)}
               onDelete={() => deletePost(item.id)}
+              onReport={() => setReportPost(item)}
+              onBlockAuthor={() => confirmBlock(item)}
             />
           )}
           refreshControl={
@@ -246,6 +272,20 @@ function PublicFeed() {
         initialText={editingPost?.content ?? ''}
         onClose={() => setEditingPost(null)}
         onSave={saveEdit}
+      />
+
+      <ReportSheet
+        visible={!!reportPost}
+        onClose={() => setReportPost(null)}
+        contentType="Post"
+        contentId={reportPost?.id}
+        reportedUserId={(reportPost as any)?.authorId}
+        onReported={() => {
+          // Hide the reported post locally so the reporter isn't forced to
+          // see it again while the moderation team reviews.
+          if (reportPost) setPosts((prev) => prev.filter((p) => p.id !== reportPost.id));
+          setReportPost(null);
+        }}
       />
     </View>
   );
