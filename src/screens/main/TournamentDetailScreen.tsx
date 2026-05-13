@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Share } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
@@ -121,6 +121,25 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
     ]);
   }
 
+  async function handleShare() {
+    if (!data) return;
+    const url = `${API_BASE_URL}/Tournament/Details/${id}`;
+    const dateStr = new Date(data.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const where = data.city ? ` in ${data.city}${data.country ? `, ${data.country}` : ''}` : '';
+    const sport = data.sportName ? ` ${data.sportName}` : '';
+    const message = `Check out the ${data.name}${sport} tournament${where} on ${dateStr}.\n${url}`;
+    try {
+      await Share.share(
+        // iOS reads `url` separately so it can attach a rich preview; Android
+        // only reads `message`, so include the link there too.
+        { title: data.name, message, url },
+        { dialogTitle: 'Share tournament' },
+      );
+    } catch {
+      // user cancelled or platform-level error — nothing to do
+    }
+  }
+
   if (loading) return <LoadingView />;
   if (!data) return <EmptyState icon="trophy-outline" title="Tournament not found" message="It may have been deleted or the link is invalid." />;
 
@@ -225,6 +244,16 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
               fullWidth
             />
           )}
+
+          <Button
+            title="Share"
+            variant="ghost"
+            size="lg"
+            leftIcon="share-social-outline"
+            uppercase={false}
+            onPress={handleShare}
+            fullWidth
+          />
 
           {data.status === 'Finished' && (
             <Button
