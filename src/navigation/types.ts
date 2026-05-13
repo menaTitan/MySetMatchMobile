@@ -58,6 +58,7 @@ export type MarketplaceStackParamList = {
 export type ProfileStackParamList = {
   ProfileHome: undefined;
   EditProfile: undefined;
+  DeleteAccount: undefined;
   Assistant: undefined;
   MatchHistory: { playerId?: string } | undefined;
   AdminHome: undefined;

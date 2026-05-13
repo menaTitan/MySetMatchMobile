@@ -225,6 +225,18 @@ export default function ProfileScreen({ navigation }: any) {
             fullWidth
             leftIcon="log-out-outline"
           />
+
+          {/* Apple Guideline 5.1.1(v) — account deletion entry point. */}
+          <Button
+            title="Delete Account"
+            onPress={() => navigation.navigate('DeleteAccount')}
+            variant="ghost"
+            size="md"
+            fullWidth
+            uppercase={false}
+            leftIcon="trash-outline"
+            style={{ marginTop: spacing.sm }}
+          />
         </View>
       </ScrollView>
 

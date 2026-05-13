@@ -42,4 +42,11 @@ export const authApi = {
     name: string; countryId: string; cityId: string;
     skillLevel?: string; phoneNumber?: string;
   }) => api.post<{ playerId: string }>('/auth/create-profile', data),
+  /**
+   * Permanently delete the signed-in user's account. Backend anonymizes
+   * the Player record (kept for opponent match history), scrubs derived
+   * state, then removes the Identity user.
+   */
+  deleteAccount: (password: string) =>
+    api.delete<{ deleted: boolean }>('/auth/me', { data: { password } }),
 };
