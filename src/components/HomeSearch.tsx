@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, Image, Modal,
+  View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { searchApi, type SearchResults } from '../api';
@@ -111,46 +111,42 @@ export default function HomeSearch({
         )}
       </View>
 
-      {/* Render the dropdown in a Modal so it escapes the HeroHeader's
-          overflow:hidden clip on the Dashboard. */}
-      <Modal visible={showDropdown} transparent animationType="fade" onRequestClose={() => setFocused(false)}>
-        <Pressable style={styles.backdrop} onPress={() => { setFocused(false); inputRef.current?.blur(); }}>
-          <Pressable style={[styles.dropdownModal, { backgroundColor: theme.cardBg }, shadows.lg]} onPress={() => { /* swallow */ }}>
-            {loading && hits.length === 0 ? (
-              <View style={styles.center}>
-                <ActivityIndicator color={theme.primary} />
-              </View>
-            ) : showEmpty ? (
-              <View style={styles.empty}>
-                <Ionicons name="search-outline" size={22} color={theme.textMuted} />
-                <Text style={[typography.smallStrong, { color: theme.textPrimary, marginTop: 6 }]}>
-                  No matches
-                </Text>
-                <Text style={[typography.caption, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={1}>
-                  Nothing for "{query.trim()}"
-                </Text>
-              </View>
-            ) : (
-              <View>
-                {hits.map((hit, i) => (
-                  <View key={`${hit.kind}-${i}`}>
-                    {i > 0 && <View style={[styles.divider, { backgroundColor: theme.divider }]} />}
-                    <Row
-                      hit={hit}
-                      onPress={() => closeAndPick(() => {
-                        if (hit.kind === 'player') onPlayer(hit.data.id);
-                        else if (hit.kind === 'tournament') onTournament(hit.data.id);
-                        else if (hit.kind === 'group') onGroup(hit.data.id, hit.data.name);
-                        else onListing(hit.data.id);
-                      })}
-                    />
-                  </View>
-                ))}
-              </View>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {showDropdown && (
+        <View style={[styles.dropdown, { backgroundColor: theme.cardBg }, shadows.lg]}>
+          {loading && hits.length === 0 ? (
+            <View style={styles.center}>
+              <ActivityIndicator color={theme.primary} />
+            </View>
+          ) : showEmpty ? (
+            <View style={styles.empty}>
+              <Ionicons name="search-outline" size={22} color={theme.textMuted} />
+              <Text style={[typography.smallStrong, { color: theme.textPrimary, marginTop: 6 }]}>
+                No matches
+              </Text>
+              <Text style={[typography.caption, { color: theme.textMuted, marginTop: 2 }]} numberOfLines={1}>
+                Nothing for "{query.trim()}"
+              </Text>
+            </View>
+          ) : (
+            <View>
+              {hits.map((hit, i) => (
+                <View key={`${hit.kind}-${i}`}>
+                  {i > 0 && <View style={[styles.divider, { backgroundColor: theme.divider }]} />}
+                  <Row
+                    hit={hit}
+                    onPress={() => closeAndPick(() => {
+                      if (hit.kind === 'player') onPlayer(hit.data.id);
+                      else if (hit.kind === 'tournament') onTournament(hit.data.id);
+                      else if (hit.kind === 'group') onGroup(hit.data.id, hit.data.name);
+                      else onListing(hit.data.id);
+                    })}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -262,17 +258,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.6,
   },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    paddingTop: 110,           // sit roughly under the dashboard hero
-    paddingHorizontal: spacing.base,
-  },
-  dropdownModal: {
+  dropdown: {
+    position: 'absolute',
+    top: 52,
+    left: 0,
+    right: 0,
     borderRadius: radii.lg,
     overflow: 'hidden',
     paddingVertical: 4,
-    maxHeight: '70%',
+    zIndex: 20,
+    elevation: 12,
   },
   center: { padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
   empty: { padding: spacing.lg, alignItems: 'center' },

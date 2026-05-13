@@ -73,10 +73,16 @@ export default function HeroHeader({
         end={{ x: 1, y: 1 }}
         style={[styles.wrap, { paddingTop: padTop, paddingBottom: padBottom }]}
       >
-        {/* Diagonal accent slash — replaces the orb/blob ornaments. */}
-        <View pointerEvents="none" style={[styles.slash, { backgroundColor: theme.accent, opacity: 0.10 }]} />
-        <View pointerEvents="none" style={[styles.slashThin, { backgroundColor: theme.accent, opacity: 0.18 }]} />
-        <View pointerEvents="none" style={[styles.divider, { backgroundColor: theme.border }]} />
+        {/* Diagonal accent slashes. They live in their own absolutely-
+            positioned, overflow:hidden container so they can't bleed out
+            of the hero gradient — and so the hero's own children (e.g.
+            HomeSearch's dropdown) can extend past the hero bounds without
+            being clipped. */}
+        <View pointerEvents="none" style={styles.decorClip}>
+          <View style={[styles.slash, { backgroundColor: theme.accent, opacity: 0.10 }]} />
+          <View style={[styles.slashThin, { backgroundColor: theme.accent, opacity: 0.18 }]} />
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+        </View>
 
         {showBack ? (
           <Pressable
@@ -137,6 +143,12 @@ export default function HeroHeader({
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: spacing.lg,
+    // No overflow:hidden here so absolute children of the hero (search
+    // dropdown, popovers) can extend past the bottom edge of the gradient.
+    // Decorations are clipped via decorClip below.
+  },
+  decorClip: {
+    ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
   },
   slash: {

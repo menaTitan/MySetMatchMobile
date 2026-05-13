@@ -68,7 +68,9 @@ export default function DashboardScreen({ navigation }: any) {
         }
         showsVerticalScrollIndicator={false}
       >
-        <HeroHeader variant="standard">
+        {/* zIndex bumps the hero (and its absolutely-positioned search
+            dropdown) above the SportPickerBar that follows in the ScrollView. */}
+        <HeroHeader variant="standard" style={{ zIndex: 10 }}>
           <View style={styles.greetRow}>
             <Avatar
               name={player?.name}
