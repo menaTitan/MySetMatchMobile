@@ -46,11 +46,17 @@ export default function PlayersPane({ players, onOpenPlayer }: Props) {
               <Text style={[typography.bodyStrong, { color: theme.textPrimary }]} numberOfLines={1}>
                 {p.name}
               </Text>
-              {(p.city || p.country) ? (
-                <Text style={[typography.caption, { color: theme.textMuted }]} numberOfLines={1}>
-                  {p.city}{p.country ? `, ${p.country}` : ''}
-                </Text>
-              ) : null}
+              {(() => {
+                // Avoid a stray leading comma when the player has a country
+                // but no city (or vice versa).
+                const parts = [p.city, p.country].filter((s) => !!s && s.trim().length > 0);
+                if (parts.length === 0) return null;
+                return (
+                  <Text style={[typography.caption, { color: theme.textMuted }]} numberOfLines={1}>
+                    {parts.join(', ')}
+                  </Text>
+                );
+              })()}
             </View>
             <View style={[styles.ratingPill, { backgroundColor: theme.featureBg, borderColor: `${theme.accent}40` }]}>
               <Text style={[typography.smallStrong, { color: theme.accent, fontFamily: typography.display.fontFamily, fontSize: 16, letterSpacing: 0.4 }]}>
