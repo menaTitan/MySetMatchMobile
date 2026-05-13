@@ -13,7 +13,7 @@ import { radii, shadows, spacing, typography } from '../../theme';
 import { Avatar, Card, Chip, EmptyState, FeatureTileGrid, HeroHeader, LoadingView, PhotoLightbox, SectionHeader, StatTile } from '../../components/ui';
 
 export default function DashboardScreen({ navigation }: any) {
-  const { player, updatePlayer } = useAuth();
+  const { player, updatePlayer, isAdmin, isOrganizer } = useAuth();
   const { currentSport, theme } = useSport();
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,6 +131,28 @@ export default function DashboardScreen({ navigation }: any) {
             ]}
           />
         </View>
+
+        {/* Organizer / admin tools — only rendered when the signed-in user has
+            the matching role so regular players don't see club management. */}
+        {(isAdmin || isOrganizer) ? (
+          <View style={styles.quickWrap}>
+            <SectionHeader title={isAdmin ? 'Admin tools' : 'Organizer tools'} />
+            <FeatureTileGrid
+              variant="compact"
+              tiles={[
+                { key: 'newClub', icon: 'lock-closed-outline', label: 'Create Club',
+                  hint: 'Private group + invite-only feed',
+                  tint: 'accent',
+                  onPress: () => navigation.navigate('Community', { screen: 'CommunityHome', params: { openCreateClub: true } }),
+                },
+                { key: 'newTourn', icon: 'trophy-outline', label: 'New Tournament',
+                  tint: 'red',
+                  onPress: () => navigation.navigate('Play', { screen: 'CreateTournament' }),
+                },
+              ]}
+            />
+          </View>
+        ) : null}
 
         {/* Stat tiles */}
         <View style={styles.statsGrid}>

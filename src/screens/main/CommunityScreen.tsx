@@ -19,11 +19,22 @@ import { Avatar, BottomSheet, Button, Card, Chip, EmptyState, HeroHeader, Input,
 
 type Tab = 'public' | 'private';
 
-export default function CommunityScreen({ navigation }: any) {
+export default function CommunityScreen({ navigation, route }: any) {
   const { theme } = useSport();
   const [tab, setTab] = useState<Tab>('public');
   const [groupsOpen, setGroupsOpen] = useState(false);
+  const [autoCreateClub, setAutoCreateClub] = useState(false);
   const [inviteCount, setInviteCount] = useState(0);
+
+  // The Admin/Organizer dashboard deep-links here with openCreateClub=true so
+  // the manage-groups sheet opens directly into the "Create club" form.
+  useFocusEffect(useCallback(() => {
+    if (route?.params?.openCreateClub) {
+      setGroupsOpen(true);
+      setAutoCreateClub(true);
+      navigation.setParams?.({ openCreateClub: undefined });
+    }
+  }, [route?.params?.openCreateClub]));
 
   // Poll pending invitations every time the screen regains focus so the
   // badge stays current after the user accepts/declines elsewhere.
@@ -105,8 +116,9 @@ export default function CommunityScreen({ navigation }: any) {
 
       <ManageGroupsSheet
         visible={groupsOpen}
-        onClose={() => setGroupsOpen(false)}
+        onClose={() => { setGroupsOpen(false); setAutoCreateClub(false); }}
         navigation={navigation}
+        startInCreate={autoCreateClub}
       />
     </View>
   );
@@ -382,8 +394,8 @@ function PrivateFeed({ navigation, onManageGroups }: { navigation: any; onManage
 // ── Manage Groups bottom sheet (lists groups, lets user create one) ──────────
 
 function ManageGroupsSheet({
-  visible, onClose, navigation,
-}: { visible: boolean; onClose: () => void; navigation: any }) {
+  visible, onClose, navigation, startInCreate,
+}: { visible: boolean; onClose: () => void; navigation: any; startInCreate?: boolean }) {
   const { theme } = useSport();
   const [groups, setGroups] = useState<PrivateGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -391,6 +403,12 @@ function ManageGroupsSheet({
   const [groupName, setGroupName] = useState('');
   const [groupDesc, setGroupDesc] = useState('');
   const [creating, setCreating] = useState(false);
+
+  // When opened via the dashboard's "Create Club" tile, jump straight to the
+  // create form instead of the group list.
+  React.useEffect(() => {
+    if (visible && startInCreate) setCreateMode(true);
+  }, [visible, startInCreate]);
 
   const load = useCallback(async () => {
     try {
