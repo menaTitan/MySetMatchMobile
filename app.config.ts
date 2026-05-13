@@ -28,7 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: 'MySetMatch',
     slug: 'MySetMatchMobile',
-    version: '1.0.1',
+    version: '1.0.2',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -41,10 +41,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.mysetmatch.app',
-      // Declares the app uses only standard/exempt encryption so App Store
-      // submission skips the annual export-compliance prompt.
       infoPlist: {
+        // Declares the app uses only standard/exempt encryption so App Store
+        // submission skips the annual export-compliance prompt.
         ITSAppUsesNonExemptEncryption: false,
+        // Apple Guideline 5.1.1(ii) requires purpose strings to clearly
+        // describe each use of the resource and give concrete examples.
+        NSPhotoLibraryUsageDescription:
+          'MySetMatch needs access to your photo library so you can pick a picture to set as your profile photo, attach an image to a community post, or showcase paddles and other equipment you list in the marketplace.',
       },
     },
     android: {
