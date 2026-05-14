@@ -25,6 +25,12 @@ export interface ChatMessageDto {
   sentDate: string;
   isEdited?: boolean;
   editedDate?: string;
+  attachmentUrl?: string | null;
+  attachmentType?: 'image' | 'file' | null;
+  attachmentName?: string | null;
+  // Client-only state used for optimistic sends — never present on server payloads.
+  pending?: boolean;
+  failed?: boolean;
 }
 export interface SuggestedUser {
   userId: string;
@@ -40,6 +46,21 @@ export const chatApi = {
     api.get<ChatMessageDto[]>(`/mobile/chat/${roomId}/messages`, { params: { skip, take } }),
   send: (roomId: string, content: string) =>
     api.post<ChatMessageDto>(`/mobile/chat/${roomId}/messages`, { content }),
+  sendAttachment: (
+    roomId: string,
+    file: { uri: string; name: string; type: string },
+    content?: string,
+  ) => {
+    const form = new FormData();
+    // React Native FormData accepts {uri,name,type}
+    form.append('file', file as any);
+    if (content && content.trim()) form.append('content', content.trim());
+    return api.post<ChatMessageDto>(
+      `/mobile/chat/${roomId}/attachment`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+  },
   markRead: (roomId: string) => api.post(`/mobile/chat/${roomId}/read`),
   createDirect: (otherUserId: string) =>
     api.post<{ id: string; created: boolean }>('/mobile/chat/direct', { otherUserId }),

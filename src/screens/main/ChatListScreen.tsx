@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, Pressable } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl, Pressable, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { chatApi, type ChatRoomDto } from '../../api';
@@ -106,41 +106,60 @@ function RoomRow({
   room, online, onPress, myUserId,
 }: { room: ChatRoomDto; online?: boolean; onPress: () => void; myUserId?: string }) {
   const { theme } = useSport();
-  const preview = room.lastMessage?.content ?? 'No messages yet';
+  const lastSenderIsMe = room.lastMessage?.senderId === myUserId;
+  let preview = room.lastMessage?.content?.trim() || '';
+  if (!preview && room.lastMessage) preview = '📷 Photo';
+  if (!preview && !room.lastMessage) preview = 'No messages yet';
+  if (lastSenderIsMe && room.lastMessage) preview = `You: ${preview}`;
   const sent = room.lastMessage?.sentDate ? timeAgoShort(room.lastMessage.sentDate) : '';
-  // Direct chats: pick the other participant (not me) for the avatar.
   const otherPhoto = room.type === 'Direct'
     ? (room.participants.find((p) => p.userId !== myUserId) ?? room.participants[0])?.profilePhotoUrl
     : undefined;
+  const unread = room.unreadCount > 0;
   return (
     <Card padding={0} onPress={onPress}>
       <View style={styles.row}>
         <View>
-          <Avatar name={room.name} photoUrl={otherPhoto} size={48} />
+          <Avatar name={room.name} photoUrl={otherPhoto} size={52} />
           {room.type === 'Direct' && online ? (
             <View style={[styles.onlineDot, { backgroundColor: theme.successGreen, borderColor: theme.cardBg }]} />
           ) : null}
         </View>
         <View style={{ flex: 1 }}>
           <View style={styles.titleRow}>
-            <Text style={[typography.bodyStrong, { color: theme.textPrimary, flex: 1 }]} numberOfLines={1}>
+            <Text
+              style={[
+                typography.bodyStrong,
+                { color: theme.textPrimary, flex: 1, fontWeight: unread ? '800' : '600' },
+              ]}
+              numberOfLines={1}
+            >
               {room.name}
             </Text>
             {sent ? (
-              <Text style={[typography.caption, { color: theme.textMuted }]}>{sent}</Text>
+              <Text style={[typography.caption, { color: unread ? theme.accent : theme.textMuted, fontWeight: unread ? '700' : '500' }]}>
+                {sent}
+              </Text>
             ) : null}
           </View>
           <View style={styles.previewRow}>
             <Text
-              style={[typography.small, { color: room.unreadCount > 0 ? theme.textPrimary : theme.textMuted, flex: 1 }]}
+              style={[
+                typography.small,
+                {
+                  color: unread ? theme.textPrimary : theme.textMuted,
+                  fontWeight: unread ? '600' : '400',
+                  flex: 1,
+                },
+              ]}
               numberOfLines={1}
             >
               {preview}
             </Text>
-            {room.unreadCount > 0 ? (
+            {unread ? (
               <View style={[styles.unreadBadge, { backgroundColor: theme.accent }]}>
-                <Text style={[typography.caption, { color: theme.primary, fontWeight: '800', fontSize: 10 }]}>
-                  {room.unreadCount}
+                <Text style={[typography.caption, { color: '#fff', fontWeight: '800', fontSize: 10 }]}>
+                  {room.unreadCount > 99 ? '99+' : room.unreadCount}
                 </Text>
               </View>
             ) : null}
@@ -152,12 +171,18 @@ function RoomRow({
 }
 
 function timeAgoShort(dateStr: string) {
-  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+  const d = new Date(dateStr);
+  const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 60) return 'now';
   if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
-  return new Date(dateStr).toLocaleDateString();
+  // Same day → show time (e.g. "3:42 PM"), keeps the row scannable.
+  const now = new Date();
+  if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()) {
+    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  if (diff < 86400 * 2) return 'Yesterday';
+  if (diff < 86400 * 7) return d.toLocaleDateString(undefined, { weekday: 'short' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 const styles = StyleSheet.create({
