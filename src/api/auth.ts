@@ -1,26 +1,16 @@
 import api from './client';
 import type { AuthResponse } from '../types';
 
-/**
- * Register response. Account is created but email is unconfirmed. Client
- * must call verifyEmail with the 6-digit code to obtain auth tokens.
- */
-export interface RegisterResponse {
-  userId: string;
-  needsVerification: true;
-  resent?: boolean;
-}
-
 export const authApi = {
   login: (email: string, password: string) =>
     api.post<AuthResponse>('/auth/login', { email, password }),
   /**
-   * Step 1 of the new flow: create the auth user (email unconfirmed) and
-   * email a 6-digit verification code. The response carries the userId
-   * which the client passes to verifyEmail.
+   * Create the auth user and receive tokens directly. Email verification
+   * is temporarily disabled server-side; the client goes straight to
+   * CreateProfile after a successful register.
    */
   register: (data: { email: string; password: string; name: string }) =>
-    api.post<RegisterResponse>('/auth/register', data),
+    api.post<AuthResponse>('/auth/register', data),
   /** Step 2: confirm the code emailed during register. Returns auth tokens. */
   verifyEmail: (data: { userId: string; code: string }) =>
     api.post<AuthResponse>('/auth/verify-email', data),

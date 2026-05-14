@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
+import { Text, StyleSheet, Alert, Pressable } from 'react-native';
 import { authApi } from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import { DEFAULT_THEME, spacing, typography } from '../../theme';
 import { AuthScreen, Button, Input } from '../../components/ui';
 
 const T = DEFAULT_THEME;
 
-/**
- * Step 1 of registration. Collects only name / email / password so the
- * user gets out of the form quickly. After the backend creates the
- * unconfirmed user and sends a 6-digit code, the navigation moves to
- * VerifyEmailScreen and then CreateProfileScreen.
- */
 export default function RegisterScreen({ navigation }: any) {
+  const { applyAuthResponse } = useAuth();
   const [form, setForm] = useState({ email: '', password: '', name: '' });
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -39,14 +35,9 @@ export default function RegisterScreen({ navigation }: any) {
     setLoading(true);
     try {
       const { data } = await authApi.register({ email, password: form.password, name });
-      // Email verification is required. Client must enter the 6-digit code
-      // before getting auth tokens.
-      navigation.replace('VerifyEmail', {
-        userId: data.userId,
-        email,
-        name,
-        resent: data.resent === true,
-      });
+      // Email verification is temporarily off — backend returns tokens directly.
+      // The root navigator routes to CreateProfile when player is null.
+      await applyAuthResponse(data);
     } catch (err: any) {
       const errors = err?.response?.data?.errors;
       const msg = errors ? errors.join('\n') : (err?.response?.data?.message ?? 'Registration failed. Please try again.');
@@ -89,10 +80,6 @@ export default function RegisterScreen({ navigation }: any) {
         value={form.password}
         onChangeText={v => update('password', v)}
       />
-
-      <Text style={[typography.small, { color: T.textMuted, marginTop: spacing.xs, marginBottom: spacing.sm }]}>
-        We'll send a 6-digit code to your email to verify it.
-      </Text>
 
       <Button
         title="Continue"
