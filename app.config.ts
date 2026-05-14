@@ -28,7 +28,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: 'MySetMatch',
     slug: 'MySetMatchMobile',
-    version: '1.0.7',
+    // URL scheme — used for Stripe checkout return (mysetmatch://payment/success)
+    // and any future deep links. Required for openAuthSessionAsync to bring the
+    // user back to the app after the browser tab closes.
+    scheme: 'mysetmatch',
+    version: '1.0.8',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',

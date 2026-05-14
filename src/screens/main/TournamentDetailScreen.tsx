@@ -81,10 +81,32 @@ export default function TournamentDetailScreen({ route, navigation }: any) {
     setActionLoading(true);
     try {
       if (data && data.entryFee != null && data.entryFee > 0) {
-        const { data: resp } = await paymentApi.createCheckout({ tournamentId: id });
-        await WebBrowser.openBrowserAsync(resp.checkoutUrl);
+        // Paid tournament — open Stripe Checkout in an in-app browser tab.
+        // openAuthSessionAsync watches for our mysetmatch://payment/* redirect
+        // and auto-closes the tab + returns control here when Stripe finishes.
+        // openBrowserAsync (the previous call) resolved the moment the tab
+        // opened, so the immediate load() ran while the user was still on
+        // Stripe — leaving the screen stuck on "Register" instead of
+        // reflecting the new payment + registration state.
+        const returnUrl = 'mysetmatch://payment/return';
+        const { data: resp } = await paymentApi.createCheckout({
+          tournamentId: id,
+          successUrl: 'mysetmatch://payment/success',
+          cancelUrl: 'mysetmatch://payment/cancel',
+        });
+        const result = await WebBrowser.openAuthSessionAsync(resp.checkoutUrl, returnUrl);
+        if (result.type === 'success' && result.url?.includes('payment/success')) {
+          toast('Payment successful — registering you now…', 'success');
+        } else if (result.type === 'success' && result.url?.includes('payment/cancel')) {
+          toast('Payment cancelled', 'warning');
+        }
+        // Either way, refresh — Stripe's webhook updates the payment row +
+        // registration on the server. There's a brief lag before the webhook
+        // fires, so retry once after a short delay if still not registered.
         await load();
-        toast('Check your email for a receipt once payment completes.', 'info', 5000);
+        if (!data?.isRegistered) {
+          setTimeout(() => load(), 2500);
+        }
         return;
       }
       await tournamentsApi.register(id);
