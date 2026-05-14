@@ -38,24 +38,31 @@ export default function VerifyEmailScreen({ navigation, route }: any) {
   }, [cooldown]);
 
   function setDigit(idx: number, value: string) {
-    // Paste / autofill: distribute multi-char input across cells.
     const cleaned = value.replace(/\D/g, '');
-    if (cleaned.length > 1) {
+
+    // 3+ digits: treat as a real paste / SMS autofill and distribute
+    // starting at the current cell.
+    if (cleaned.length >= 3) {
       const next = [...digits];
       for (let i = 0; i < CODE_LENGTH && i + idx < CODE_LENGTH; i++) {
         next[idx + i] = cleaned[i] ?? '';
       }
       setDigits(next);
-      const lastFilled = Math.min(idx + cleaned.length, CODE_LENGTH - 1);
+      const lastFilled = Math.min(idx + cleaned.length - 1, CODE_LENGTH - 1);
       inputs.current[lastFilled]?.focus();
       if (next.every((d) => d.length === 1)) submit(next.join(''));
       return;
     }
+
+    // 0-2 digits: user is typing or replacing a single cell. iOS appends
+    // when typing over a filled cell ("1" + "2" → "12"); take just the
+    // most recently typed digit so replacement works as expected.
+    const newChar = cleaned ? cleaned[cleaned.length - 1] : '';
     const next = [...digits];
-    next[idx] = cleaned;
+    next[idx] = newChar;
     setDigits(next);
-    if (cleaned && idx < CODE_LENGTH - 1) inputs.current[idx + 1]?.focus();
-    if (cleaned && idx === CODE_LENGTH - 1 && next.every((d) => d.length === 1)) {
+    if (newChar && idx < CODE_LENGTH - 1) inputs.current[idx + 1]?.focus();
+    if (newChar && idx === CODE_LENGTH - 1 && next.every((d) => d.length === 1)) {
       submit(next.join(''));
     }
   }
