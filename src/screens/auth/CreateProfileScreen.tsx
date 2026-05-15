@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert, FlatList, Pressable, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { authApi, playerApi, sportsApi } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useLocationChain } from '../../hooks/useLocationChain';
 import type { Sport } from '../../types';
 import { DEFAULT_THEME, radii, spacing, typography } from '../../theme';
-import { AuthScreen, BottomSheet, Button, Chip, Input, SportIcon } from '../../components/ui';
+import { Avatar, AuthScreen, BottomSheet, Button, Chip, Input, SportIcon } from '../../components/ui';
 
 const T = DEFAULT_THEME;
 
@@ -38,6 +39,10 @@ export default function CreateProfileScreen({ navigation, route }: any) {
   const [countryModal, setCountryModal] = useState(false);
   const [regionModal, setRegionModal] = useState(false);
   const [cityModal, setCityModal] = useState(false);
+  // Photo is picked locally and held as a file URI; the actual upload runs
+  // after createProfile succeeds (the upload endpoint needs an existing
+  // Player row to attach the URL to).
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   useEffect(() => {
     sportsApi.list().then((r) => setSports(r.data)).catch(() => {});
@@ -49,6 +54,22 @@ export default function CreateProfileScreen({ navigation, route }: any) {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  }
+
+  async function handlePickPhoto() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Photo library access is required to set a profile photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    setPhotoUri(result.assets[0].uri);
   }
 
   async function handleCreate() {
@@ -77,6 +98,11 @@ export default function CreateProfileScreen({ navigation, route }: any) {
           });
         } catch { /* non-fatal */ }
       }
+      // Upload the chosen profile photo now that the Player row exists.
+      // Non-fatal — the user can re-upload from Edit Profile if it fails.
+      if (photoUri) {
+        try { await playerApi.uploadPhoto(photoUri); } catch { /* non-fatal */ }
+      }
       // Pull the canonical player back so the AuthContext flips from
       // "no player yet" to populated — the root navigator then routes
       // to the Main stack automatically.
@@ -100,6 +126,20 @@ export default function CreateProfileScreen({ navigation, route }: any) {
         title="Complete your profile"
         subtitle="A few more details so we can match you with the right players"
       >
+        <View style={styles.photoBlock}>
+          <Pressable onPress={handlePickPhoto} style={styles.avatarWrap}>
+            <View style={[styles.avatarRing, { borderColor: T.accent, shadowColor: T.accent }]}>
+              <Avatar name={name || initialName} photoUrl={photoUri ?? undefined} size={96} />
+            </View>
+            <View style={[styles.cameraBadge, { backgroundColor: T.accent }]}>
+              <Ionicons name="camera" size={14} color="#fff" />
+            </View>
+          </Pressable>
+          <Text style={[typography.small, { color: T.textMuted, marginTop: spacing.sm }]}>
+            {photoUri ? 'Tap to change photo' : 'Add a profile photo (optional)'}
+          </Text>
+        </View>
+
         <Input
           label="Full name *"
           leftIcon="person-outline"
@@ -302,6 +342,22 @@ function PickerModal({
 }
 
 const styles = StyleSheet.create({
+  photoBlock: { alignItems: 'center', marginBottom: spacing.lg },
+  avatarWrap: { position: 'relative' },
+  avatarRing: {
+    padding: 3,
+    borderRadius: 999,
+    borderWidth: 2,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  cameraBadge: {
+    position: 'absolute', right: -2, bottom: -2,
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#fff',
+  },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   sportGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   sportChip: {
