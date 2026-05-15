@@ -38,7 +38,15 @@ export default function ResetPasswordScreen({ navigation, route }: any) {
         { text: 'OK', onPress: () => navigation.popToTop() },
       ]);
     } catch (err: any) {
-      Alert.alert('Reset failed', err?.response?.data?.message ?? 'Invalid or expired reset code.');
+      // Identity returns { errors: [...] } for validation failures (weak
+      // password etc.) and { message } for "invalid reset request". Show
+      // whichever one came back so the user sees the real reason instead
+      // of a generic "expired code" message.
+      const errors = err?.response?.data?.errors;
+      const msg = Array.isArray(errors) && errors.length
+        ? errors.join('\n')
+        : (err?.response?.data?.message ?? 'Invalid or expired reset code.');
+      Alert.alert('Reset failed', msg);
     } finally { setLoading(false); }
   }
 

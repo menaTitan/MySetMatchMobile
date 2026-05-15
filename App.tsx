@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, LinkingOptions } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet, Image, Text, ActivityIndicator } from 'react-native';
@@ -29,6 +29,20 @@ const NAV_THEME = {
     border: DEFAULT_THEME.border,
     primary: DEFAULT_THEME.accent,
     notification: DEFAULT_THEME.accent,
+  },
+};
+
+// Deep-link map. The backend's password-reset email sends
+// mysetmatch://reset-password?email=…&token=…  — without this config the app
+// just opens to whatever the current root is and the token is lost.
+// React Navigation auto-decodes query params into route.params.
+const LINKING: LinkingOptions<ReactNavigation.RootParamList> = {
+  prefixes: ['mysetmatch://'],
+  config: {
+    screens: {
+      ResetPassword: 'reset-password',
+      ConfirmEmail: 'confirm-email',
+    },
   },
 };
 
@@ -79,7 +93,7 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <SportProvider>
-            <NavigationContainer ref={navigationRef} theme={NAV_THEME}>
+            <NavigationContainer ref={navigationRef} theme={NAV_THEME} linking={LINKING}>
               <StatusBar style="light" />
               <RootNavigator />
             </NavigationContainer>
