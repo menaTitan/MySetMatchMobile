@@ -36,8 +36,11 @@ export default function RegisterScreen({ navigation }: any) {
     try {
       const { data } = await authApi.register({ email, password: form.password, name });
       // Email verification is temporarily off — backend returns tokens directly.
-      // The root navigator routes to CreateProfile when player is null.
+      // applyAuthResponse flips isAuthenticated, but App.tsx keeps the same
+      // AuthNavigator mounted (player is null), so initialRouteName won't move
+      // us. Navigate explicitly so the user lands on CreateProfile.
       await applyAuthResponse(data);
+      navigation.replace('CreateProfile');
     } catch (err: any) {
       const errors = err?.response?.data?.errors;
       const msg = errors ? errors.join('\n') : (err?.response?.data?.message ?? 'Registration failed. Please try again.');
