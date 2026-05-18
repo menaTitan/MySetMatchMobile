@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Image, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, Animated, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSport } from '../context/SportContext';
 import { radii, shadows, spacing, typography } from '../theme';
@@ -7,6 +7,11 @@ import Avatar from './ui/Avatar';
 import LinkPreview from './LinkPreview';
 import { firstLinkPreview } from '../utils/linkPreview';
 import { REACTIONS, type ReactionKind } from '../api';
+
+// Public web URL where shared post links resolve. Recipients without the
+// app installed land on the web feed (FeedController.Index allows anonymous
+// access) and the #post-<id> anchor scrolls them to the right card.
+const WEB_PUBLIC_URL = 'https://mysetmatchweb-h9gva0aagrc5fjh6.centralus-01.azurewebsites.net';
 
 export interface PostLike {
   id: string;
@@ -53,6 +58,18 @@ export default function PostCard({
     ? (post.myReaction as ReactionKind) : undefined;
   const meta = active ? REACTION_META[active] : null;
   const link = useMemo(() => firstLinkPreview(post.content), [post.content]);
+
+  async function handleShare() {
+    const url = `${WEB_PUBLIC_URL}/Feed#post-${post.id}`;
+    const snippet = post.content.length > 140 ? post.content.slice(0, 140) + '…' : post.content;
+    const message = `${post.authorName} on MySetMatch:\n\n${snippet}\n\n${url}`;
+    try {
+      // iOS uses `url`, Android composes the `message`. Passing both keeps
+      // share sheets (WhatsApp, X, Messages, etc.) populated on every OS.
+      await Share.share({ message, url, title: 'MySetMatch post' });
+    } catch { /* user dismissed; nothing to do */ }
+  }
+
   return (
     <View style={[styles.card, { backgroundColor: theme.pageBg, borderBottomColor: theme.border }]}>
       <View style={styles.header}>
@@ -156,6 +173,16 @@ export default function PostCard({
           <Ionicons name="chatbubble-outline" size={16} color={theme.textSecondary} />
           <Text style={[typography.smallStrong, { color: theme.textSecondary }]}>
             {post.commentCount}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleShare}
+          style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
+        >
+          <Ionicons name="share-social-outline" size={16} color={theme.textSecondary} />
+          <Text style={[typography.smallStrong, { color: theme.textSecondary }]}>
+            Share
           </Text>
         </Pressable>
       </View>
