@@ -8,9 +8,9 @@ import LinkPreview from './LinkPreview';
 import { firstLinkPreview } from '../utils/linkPreview';
 import { REACTIONS, type ReactionKind } from '../api';
 
-// Public web URL where shared post links resolve. Recipients without the
-// app installed land on the web feed (FeedController.Index allows anonymous
-// access) and the #post-<id> anchor scrolls them to the right card.
+// Public web URL where shared post links resolve. The /Feed/Post/{id}
+// route emits per-post Open Graph tags so WhatsApp / Facebook / X render
+// a rich preview with the post image.
 const WEB_PUBLIC_URL = 'https://mysetmatchweb-h9gva0aagrc5fjh6.centralus-01.azurewebsites.net';
 
 export interface PostLike {
@@ -60,7 +60,7 @@ export default function PostCard({
   const link = useMemo(() => firstLinkPreview(post.content), [post.content]);
 
   async function handleShare() {
-    const url = `${WEB_PUBLIC_URL}/Feed#post-${post.id}`;
+    const url = `${WEB_PUBLIC_URL}/Feed/Post/${post.id}`;
     const snippet = post.content.length > 140 ? post.content.slice(0, 140) + '…' : post.content;
     const message = `${post.authorName} on MySetMatch:\n\n${snippet}\n\n${url}`;
     try {
