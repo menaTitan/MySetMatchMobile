@@ -53,6 +53,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         // describe each use of the resource and give concrete examples.
         NSPhotoLibraryUsageDescription:
           'MySetMatch needs access to your photo library so you can pick a picture to set as your profile photo, attach an image to a community post, or showcase paddles and other equipment you list in the marketplace.',
+        // Apple Guideline 5.1.1(ii): required when the app calls
+        // LAContext / expo-local-authentication for Face ID. iOS silently
+        // refuses the prompt if the key is missing.
+        NSFaceIDUsageDescription:
+          'MySetMatch uses Face ID so you can unlock the app quickly without typing your password every time.',
       },
     },
     android: {

@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import * as SecureStore from 'expo-secure-store';
 import { authApi } from '../api';
 import type { Player } from '../types';
+import { isBiometricEnabled, promptBiometric, biometricLabel } from '../utils/biometric';
 
 interface AuthState {
   player: Player | null;
@@ -112,6 +113,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = await SecureStore.getItemAsync('accessToken');
       const playerJson = await SecureStore.getItemAsync('player');
       if (token) {
+        // If the user has opted into biometric unlock, require Face ID /
+        // Touch ID before exposing the session. A failed prompt clears the
+        // session so the next interaction is a fresh password sign-in —
+        // this is the same posture banking apps take.
+        if (await isBiometricEnabled()) {
+          const label = await biometricLabel();
+          const ok = await promptBiometric(`Unlock MySetMatch with ${label}`);
+          if (!ok) {
+            await SecureStore.deleteItemAsync('accessToken');
+            await SecureStore.deleteItemAsync('refreshToken');
+            await SecureStore.deleteItemAsync('player');
+            setState({ player: null, userId: null, roles: [], isLoading: false, isAuthenticated: false, isAdmin: false, isOrganizer: false });
+            return;
+          }
+        }
         // playerJson may be missing or literally "null" if the user
         // verified email but never completed profile creation.
         const parsed = playerJson ? JSON.parse(playerJson) : null;

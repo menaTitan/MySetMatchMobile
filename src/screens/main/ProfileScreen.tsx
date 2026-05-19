@@ -9,6 +9,13 @@ import type { SportRating } from '../../types';
 import { radii, spacing, typography } from '../../theme';
 import { Avatar, Button, Card, FeatureTileGrid, HeroHeader, ListRow, PhotoLightbox, SectionHeader } from '../../components/ui';
 import SportIcon from '../../components/ui/SportIcon';
+import {
+  biometricLabel,
+  isBiometricAvailable,
+  isBiometricEnabled,
+  promptBiometric,
+  setBiometricEnabled,
+} from '../../utils/biometric';
 
 // Backend has seven email-notification flags; the Account Settings master
 // switch flips all of them on/off in one tap. Listed once here so the
@@ -34,18 +41,59 @@ export default function ProfileScreen({ navigation }: any) {
   // switch as enabled; flipping it OFF clears all seven flags.
   const [emailOn, setEmailOn] = useState<boolean | null>(null);
   const [emailBusy, setEmailBusy] = useState(false);
+  // Biometric unlock: bioAvailable tracks whether the device even has a
+  // sensor with an enrolled fingerprint / face; bioOn is the user's
+  // opt-in. bioLabel ("Face ID" / "Touch ID") drives the row copy.
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioOn, setBioOn] = useState(false);
+  const [bioLabel, setBioLabel] = useState('Face ID');
+  const [bioBusy, setBioBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [{ data: dash }, { data: prefs }] = await Promise.all([
+      const [{ data: dash }, { data: prefs }, available, enabled, label] = await Promise.all([
         playerApi.dashboard(),
         preferencesApi.get(),
+        isBiometricAvailable(),
+        isBiometricEnabled(),
+        biometricLabel(),
       ]);
       setSportRatings(dash.sportRatings ?? []);
       setEmailOn(EMAIL_PREF_KEYS.some(k => prefs[k]));
+      setBioAvailable(available);
+      setBioLabel(label);
+      // If the user enabled biometric earlier on a different device or
+      // removed their enrollment since, surface the off state — the
+      // toggle should only read as on when it's both opted-in and
+      // actually usable right now.
+      setBioOn(enabled && available);
     } catch {}
     finally { setRefreshing(false); }
   }, []);
+
+  async function toggleBiometric(next: boolean) {
+    if (bioBusy) return;
+    if (next && !bioAvailable) {
+      Alert.alert(`${bioLabel} unavailable`, `Set up ${bioLabel} in your device settings first.`);
+      return;
+    }
+    setBioBusy(true);
+    try {
+      if (next) {
+        // Make the user prove they can pass the biometric before we
+        // enable the gate — otherwise an enabled toggle could lock them
+        // out at next launch.
+        const ok = await promptBiometric(`Enable ${bioLabel} sign-in`);
+        if (!ok) return;
+      }
+      await setBiometricEnabled(next);
+      setBioOn(next);
+    } catch (err: any) {
+      Alert.alert('Could not update', err?.message ?? 'Try again.');
+    } finally {
+      setBioBusy(false);
+    }
+  }
 
   async function toggleEmail(next: boolean) {
     if (emailBusy) return;
@@ -209,6 +257,27 @@ export default function ProfileScreen({ navigation }: any) {
                 showChevron
                 divider
                 onPress={() => navigation.navigate('ChangePassword')}
+              />
+              <ListRow
+                icon="finger-print-outline"
+                title={`${bioLabel} Sign-In`}
+                subtitle={
+                  !bioAvailable
+                    ? `Not set up on this device`
+                    : bioOn
+                      ? `Required to unlock the app`
+                      : `Use ${bioLabel} to unlock the app`
+                }
+                divider
+                trailing={
+                  <Switch
+                    value={bioOn}
+                    onValueChange={toggleBiometric}
+                    disabled={!bioAvailable || bioBusy}
+                    trackColor={{ true: theme.accent, false: theme.border }}
+                    thumbColor="#fff"
+                  />
+                }
               />
               <ListRow
                 icon="mail-outline"
