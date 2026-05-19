@@ -42,7 +42,27 @@ export default function ChatRoomScreen({ route, navigation }: any) {
   const nearBottomRef = useRef(true);
 
   useEffect(() => {
-    navigation.setOptions({ title: title ?? 'Chat' });
+    // Always render a back button. ChatRoom can be entered by deep links
+    // and by "Create Tournament Chat" from ManageTournament — when those
+    // paths push ChatRoom without ChatList in the stack, the native iOS
+    // header omits its automatic back chevron and the user gets stuck.
+    // headerLeft replaces it with our own chevron that pops if possible
+    // and otherwise falls back to ChatList so there's always a way out.
+    navigation.setOptions({
+      title: title ?? 'Chat',
+      headerLeft: () => (
+        <Pressable
+          onPress={() => {
+            if (navigation.canGoBack()) navigation.goBack();
+            else navigation.navigate('ChatList');
+          }}
+          hitSlop={16}
+          style={{ paddingHorizontal: 6, paddingVertical: 6 }}
+        >
+          <Ionicons name="chevron-back" size={26} color="#FAFAFA" />
+        </Pressable>
+      ),
+    });
   }, [navigation, title]);
 
   // Initial load — first PAGE_SIZE most-recent messages.

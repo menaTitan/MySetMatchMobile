@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSport } from '../../context/SportContext';
 import { radii, spacing, typography } from '../../theme';
 
@@ -30,6 +30,7 @@ interface Props {
 export default function PageHeader({ title, subtitle, right, children, compact, back }: Props) {
   const { theme } = useSport();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   const showBack =
     typeof back === 'function'
@@ -55,9 +56,15 @@ export default function PageHeader({ title, subtitle, right, children, compact, 
       {showBack ? (
         <Pressable
           onPress={handleBack}
-          hitSlop={10}
+          // Larger hit area so the chevron is forgiving on small targets.
+          hitSlop={16}
           style={({ pressed }) => [
             styles.backBtn,
+            // Push the button below the safe-area top inset (notch / Dynamic
+            // Island). Absolute positioning otherwise ignores the SafeAreaView
+            // padding, leaving the chevron partially under the status bar on
+            // iPhone X+ — visible but iOS steals touches near the top edge.
+            { top: insets.top + spacing.xs },
             { borderColor: theme.border, backgroundColor: 'rgba(255,255,255,0.06)' },
             pressed && { opacity: 0.7 },
           ]}
