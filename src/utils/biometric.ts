@@ -37,19 +37,23 @@ export async function isBiometricAvailable(): Promise<boolean> {
 
 /**
  * Human label for the biometric the device offers — drives toggle copy
- * and the prompt. iOS uses Apple's marketing terms ("Face ID" /
- * "Touch ID"); Android uses generic system names ("Face Unlock" /
- * "Fingerprint") so users see the same wording the OS itself shows.
+ * and the prompt. iOS uses Apple's marketing terms ("Face ID" / "Touch
+ * ID"). Android vendors don't share a single name for face unlock
+ * (Samsung "Face recognition", Pixel "Face Unlock", others "Smart
+ * Lock", etc.), so on Android we always show "Fingerprint" when that's
+ * what the device has and otherwise fall back to a generic "Biometric"
+ * rather than picking a vendor-specific term that might not match
+ * what the user sees in their own settings.
  */
 export async function biometricLabel(): Promise<string> {
   try {
     const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-    const ios = Platform.OS === 'ios';
-    if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION))
-      return ios ? 'Face ID' : 'Face Unlock';
-    if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT))
-      return ios ? 'Touch ID' : 'Fingerprint';
-    if (types.includes(LocalAuthentication.AuthenticationType.IRIS)) return 'Iris';
+    if (Platform.OS === 'ios') {
+      if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) return 'Face ID';
+      if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) return 'Touch ID';
+    } else {
+      if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) return 'Fingerprint';
+    }
   } catch {}
   return 'Biometric';
 }
