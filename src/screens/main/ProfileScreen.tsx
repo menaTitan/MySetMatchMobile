@@ -4,16 +4,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
-import { playerApi, preferencesApi, type UserPreferences } from '../../api';
+import { authApi, playerApi, preferencesApi, type UserPreferences } from '../../api';
 import type { SportRating } from '../../types';
 import { radii, spacing, typography } from '../../theme';
-import { Avatar, Button, Card, FeatureTileGrid, HeroHeader, ListRow, PhotoLightbox, SectionHeader } from '../../components/ui';
+import { Avatar, BottomSheet, Button, Card, FeatureTileGrid, HeroHeader, Input, ListRow, PhotoLightbox, SectionHeader } from '../../components/ui';
 import SportIcon from '../../components/ui/SportIcon';
 import {
   biometricLabel,
+  clearBiometricCredentials,
   isBiometricAvailable,
   isBiometricEnabled,
   promptBiometric,
+  saveBiometricCredentials,
   setBiometricEnabled,
 } from '../../utils/biometric';
 
@@ -48,6 +50,11 @@ export default function ProfileScreen({ navigation }: any) {
   const [bioOn, setBioOn] = useState(false);
   const [bioLabel, setBioLabel] = useState('Face ID');
   const [bioBusy, setBioBusy] = useState(false);
+  // Enable-time prompt: collect email + password so we can store them
+  // behind biometric and let the LoginScreen replay them after logout.
+  const [bioSheetOpen, setBioSheetOpen] = useState(false);
+  const [bioEmail, setBioEmail] = useState('');
+  const [bioPassword, setBioPassword] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -73,26 +80,56 @@ export default function ProfileScreen({ navigation }: any) {
 
   async function toggleBiometric(next: boolean) {
     if (bioBusy) return;
-    if (next && !bioAvailable) {
-      Alert.alert(`${bioLabel} unavailable`, `Set up ${bioLabel} in your device settings first.`);
+    if (next) {
+      if (!bioAvailable) {
+        Alert.alert(`${bioLabel} unavailable`, `Set up ${bioLabel} in your device settings first.`);
+        return;
+      }
+      // Open the credentials sheet — actual enable happens in
+      // confirmEnableBiometric after the user types their password and
+      // we verify it.
+      setBioEmail('');
+      setBioPassword('');
+      setBioSheetOpen(true);
+      return;
+    }
+    // Disabling: also wipe the stashed credentials so a re-enable later
+    // forces re-verification and an old password can't linger.
+    setBioBusy(true);
+    try {
+      await setBiometricEnabled(false);
+      await clearBiometricCredentials();
+      setBioOn(false);
+    } finally { setBioBusy(false); }
+  }
+
+  async function confirmEnableBiometric() {
+    const email = bioEmail.trim().toLowerCase();
+    if (!email || !bioPassword) {
+      Alert.alert('Missing info', 'Enter your email and password.');
       return;
     }
     setBioBusy(true);
     try {
-      if (next) {
-        // Make the user prove they can pass the biometric before we
-        // enable the gate — otherwise an enabled toggle could lock them
-        // out at next launch.
-        const ok = await promptBiometric(`Enable ${bioLabel} sign-in`);
-        if (!ok) return;
+      // 1. Verify credentials by hitting the login endpoint — wrong
+      //    password should NOT enable the toggle.
+      await authApi.login(email, bioPassword);
+      // 2. Make the user pass the biometric so we know they can later.
+      const ok = await promptBiometric(`Enable ${bioLabel} sign-in`);
+      if (!ok) {
+        Alert.alert(`${bioLabel} not confirmed`, 'Try again.');
+        return;
       }
-      await setBiometricEnabled(next);
-      setBioOn(next);
+      // 3. Persist the flag and credentials.
+      await saveBiometricCredentials(email, bioPassword);
+      await setBiometricEnabled(true);
+      setBioOn(true);
+      setBioSheetOpen(false);
+      setBioPassword('');
     } catch (err: any) {
-      Alert.alert('Could not update', err?.message ?? 'Try again.');
-    } finally {
-      setBioBusy(false);
-    }
+      const msg = err?.response?.data?.message ?? 'Could not verify your account.';
+      Alert.alert('Verification failed', msg);
+    } finally { setBioBusy(false); }
   }
 
   async function toggleEmail(next: boolean) {
@@ -390,6 +427,53 @@ export default function ProfileScreen({ navigation }: any) {
         caption={player.name}
         onClose={() => setPhotoOpen(false)}
       />
+
+      <BottomSheet
+        visible={bioSheetOpen}
+        onClose={() => { if (!bioBusy) setBioSheetOpen(false); }}
+        title={`Enable ${bioLabel} Sign-In`}
+      >
+        <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.small, { color: theme.textMuted }]}>
+            Confirm your password so we can replay it after a {bioLabel.toLowerCase()} prompt the next time you sign in. We'll store it securely on this device only.
+          </Text>
+          <Input
+            label="Email"
+            leftIcon="mail-outline"
+            placeholder="you@example.com"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            value={bioEmail}
+            onChangeText={setBioEmail}
+          />
+          <Input
+            label="Password"
+            leftIcon="lock-closed-outline"
+            placeholder="Your current password"
+            secureTextEntry
+            value={bioPassword}
+            onChangeText={setBioPassword}
+          />
+          <Button
+            title={`Verify and enable ${bioLabel}`}
+            onPress={confirmEnableBiometric}
+            loading={bioBusy}
+            variant="primary"
+            size="lg"
+            fullWidth
+          />
+          <Button
+            title="Cancel"
+            onPress={() => setBioSheetOpen(false)}
+            variant="ghost"
+            size="md"
+            fullWidth
+            uppercase={false}
+            disabled={bioBusy}
+          />
+        </View>
+      </BottomSheet>
     </View>
   );
 }

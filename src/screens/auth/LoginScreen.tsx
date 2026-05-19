@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { DEFAULT_THEME, spacing, typography } from '../../theme';
 import { AuthScreen, Button, Input } from '../../components/ui';
+import {
+  biometricLabel,
+  clearBiometricCredentials,
+  hasBiometricCredentials,
+  isBiometricAvailable,
+  isBiometricEnabled,
+  unlockBiometricCredentials,
+} from '../../utils/biometric';
 
 const T = DEFAULT_THEME;
 
@@ -12,6 +20,24 @@ export default function LoginScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Biometric sign-in button visibility — only shown when the user
+  // previously enabled the toggle AND we have credentials on file AND
+  // the device still has a usable biometric.
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioLabelText, setBioLabelText] = useState('Face ID');
+
+  useEffect(() => {
+    (async () => {
+      const [enabled, hasCreds, available, label] = await Promise.all([
+        isBiometricEnabled(),
+        hasBiometricCredentials(),
+        isBiometricAvailable(),
+        biometricLabel(),
+      ]);
+      setBioAvailable(enabled && hasCreds && available);
+      setBioLabelText(label);
+    })();
+  }, []);
 
   async function handleLogin() {
     if (!email || !password) {
@@ -23,6 +49,29 @@ export default function LoginScreen({ navigation }: any) {
       await login(email.trim().toLowerCase(), password);
     } catch (err: any) {
       Alert.alert('Login failed', err?.response?.data?.message ?? 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleBiometricSignIn() {
+    setLoading(true);
+    try {
+      const creds = await unlockBiometricCredentials(`Sign in with ${bioLabelText}`);
+      if (!creds) return; // user cancelled or biometric failed
+      try {
+        await login(creds.email, creds.password);
+      } catch (err: any) {
+        // Stored password no longer works (rotated, account disabled,
+        // etc.) — clear creds so the button hides and force a manual
+        // sign-in.
+        await clearBiometricCredentials();
+        setBioAvailable(false);
+        Alert.alert(
+          'Saved password is out of date',
+          'Please sign in once with your password to re-enable biometric login.',
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -70,6 +119,19 @@ export default function LoginScreen({ navigation }: any) {
         rightIcon="arrow-forward"
         style={{ marginTop: spacing.sm }}
       />
+
+      {bioAvailable ? (
+        <Button
+          title={`Sign in with ${bioLabelText}`}
+          onPress={handleBiometricSignIn}
+          variant="secondary"
+          size="md"
+          fullWidth
+          uppercase={false}
+          leftIcon="finger-print-outline"
+          style={{ marginTop: spacing.sm }}
+        />
+      ) : null}
 
       <Button
         title="Forgot password?"
