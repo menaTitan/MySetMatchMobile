@@ -43,4 +43,12 @@ export const authApi = {
    */
   deleteAccount: (password: string) =>
     api.delete<{ deleted: boolean }>('/auth/me', { data: { password } }),
+  /**
+   * Change the signed-in user's password. Backend verifies the current
+   * password, applies Identity's complexity rules to the new one, and
+   * invalidates all outstanding refresh tokens so other devices have to
+   * re-authenticate.
+   */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post<{ changed: boolean }>('/auth/change-password', { currentPassword, newPassword }),
 };

@@ -59,6 +59,7 @@ export type ProfileStackParamList = {
   ProfileHome: undefined;
   EditProfile: undefined;
   DeleteAccount: undefined;
+  ChangePassword: undefined;
   BlockedUsers: undefined;
   Settings: undefined;
   Assistant: undefined;

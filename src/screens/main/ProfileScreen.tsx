@@ -1,14 +1,27 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, RefreshControl, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useSport } from '../../context/SportContext';
-import { playerApi } from '../../api';
+import { playerApi, preferencesApi, type UserPreferences } from '../../api';
 import type { SportRating } from '../../types';
 import { radii, spacing, typography } from '../../theme';
 import { Avatar, Button, Card, FeatureTileGrid, HeroHeader, ListRow, PhotoLightbox, SectionHeader } from '../../components/ui';
 import SportIcon from '../../components/ui/SportIcon';
+
+// Backend has seven email-notification flags; the Account Settings master
+// switch flips all of them on/off in one tap. Listed once here so the
+// load-on-focus, "any-on" detection, and the patch all stay in sync.
+const EMAIL_PREF_KEYS = [
+  'emailTournamentAnnouncements',
+  'emailMatchResults',
+  'emailPostComments',
+  'emailPostReactions',
+  'emailDirectMessages',
+  'emailClubInvitations',
+  'emailMarketing',
+] as const satisfies readonly (keyof UserPreferences)[];
 
 export default function ProfileScreen({ navigation }: any) {
   const { player, logout, isAdmin } = useAuth();
@@ -16,14 +29,38 @@ export default function ProfileScreen({ navigation }: any) {
   const [sportRatings, setSportRatings] = useState<SportRating[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
+  // Master email-notification switch state. Treated as "any email flag is
+  // on" so a user who already opted out of marketing alone still sees the
+  // switch as enabled; flipping it OFF clears all seven flags.
+  const [emailOn, setEmailOn] = useState<boolean | null>(null);
+  const [emailBusy, setEmailBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const { data } = await playerApi.dashboard();
-      setSportRatings(data.sportRatings ?? []);
+      const [{ data: dash }, { data: prefs }] = await Promise.all([
+        playerApi.dashboard(),
+        preferencesApi.get(),
+      ]);
+      setSportRatings(dash.sportRatings ?? []);
+      setEmailOn(EMAIL_PREF_KEYS.some(k => prefs[k]));
     } catch {}
     finally { setRefreshing(false); }
   }, []);
+
+  async function toggleEmail(next: boolean) {
+    if (emailBusy) return;
+    // Optimistic — the switch is the only visible state, so flipping it
+    // back on failure is enough to keep the UI honest.
+    setEmailOn(next);
+    setEmailBusy(true);
+    try {
+      const patch = Object.fromEntries(EMAIL_PREF_KEYS.map(k => [k, next])) as Partial<UserPreferences>;
+      await preferencesApi.update(patch);
+    } catch (err: any) {
+      setEmailOn(!next);
+      Alert.alert('Could not update', err?.response?.data?.message ?? 'Try again in a moment.');
+    } finally { setEmailBusy(false); }
+  }
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
   if (!player) return null;
@@ -158,10 +195,46 @@ export default function ProfileScreen({ navigation }: any) {
             </Card>
           )}
 
-          {/* Account */}
-          <Card>
-            <SectionHeader title="Account" icon="settings-outline" />
-            <InfoRow icon="id-card-outline" label="Member ID" value={player.id.slice(0, 8).toUpperCase()} last />
+          {/* Account Settings */}
+          <Card padding={0}>
+            <View style={{ paddingHorizontal: spacing.base, paddingTop: spacing.sm }}>
+              <SectionHeader title="Account Settings" icon="settings-outline" />
+              <InfoRow icon="id-card-outline" label="Member ID" value={player.id.slice(0, 8).toUpperCase()} last />
+            </View>
+            <View style={{ paddingHorizontal: spacing.base }}>
+              <ListRow
+                icon="key-outline"
+                title="Change Password"
+                subtitle="Update your sign-in password"
+                showChevron
+                divider
+                onPress={() => navigation.navigate('ChangePassword')}
+              />
+              <ListRow
+                icon="mail-outline"
+                title="Email Notifications"
+                subtitle={emailOn ? 'Sending updates to your inbox' : 'All emails turned off'}
+                divider
+                trailing={
+                  <Switch
+                    value={emailOn ?? false}
+                    onValueChange={toggleEmail}
+                    disabled={emailOn === null || emailBusy}
+                    trackColor={{ true: theme.accent, false: theme.border }}
+                    thumbColor="#fff"
+                  />
+                }
+              />
+              <ListRow
+                icon="trash-outline"
+                iconColor={theme.dangerRed}
+                title="Delete Account"
+                subtitle="Permanently remove your account"
+                showChevron
+                divider
+                onPress={() => navigation.navigate('DeleteAccount')}
+              />
+            </View>
           </Card>
 
           {/* Help & Legal — collapsed list of secondary destinations */}
@@ -238,18 +311,6 @@ export default function ProfileScreen({ navigation }: any) {
             size="lg"
             fullWidth
             leftIcon="log-out-outline"
-          />
-
-          {/* Apple Guideline 5.1.1(v) — account deletion entry point. */}
-          <Button
-            title="Delete Account"
-            onPress={() => navigation.navigate('DeleteAccount')}
-            variant="ghost"
-            size="md"
-            fullWidth
-            uppercase={false}
-            leftIcon="trash-outline"
-            style={{ marginTop: spacing.sm }}
           />
         </View>
       </ScrollView>
